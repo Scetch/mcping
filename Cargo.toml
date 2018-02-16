@@ -1,0 +1,11 @@
+[package]
+name = "mcping"
+version = "0.1.0"
+authors = ["Scetch <lucierbrandon@gmail.com>"]
+
+[dependencies]
+byteorder = "1.2.1"
+serde = "1.0.27"
+serde_derive = "1.0.27"
+serde_json = "1.0.9"
+serenity = "0.5.1"
