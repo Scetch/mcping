@@ -66,8 +66,8 @@ trait WriteMinecraftExt: Write + WriteBytesExt {
 impl<T> WriteMinecraftExt for T where T: Write + WriteBytesExt {}
 
 /// Ping the server and get a response.
-pub fn ping_response(ip: &str, port: u16) -> io::Result<String> {
-    let addr = SocketAddr::new(ip.parse().unwrap(), port);
+pub fn ping_response(addr: &str) -> io::Result<String> {
+    let addr: SocketAddr = addr.parse().expect("Invalid ip address.");
     let mut s = TcpStream::connect(addr)?;
 
     let mut buf = Vec::new();
@@ -76,8 +76,8 @@ pub fn ping_response(ip: &str, port: u16) -> io::Result<String> {
         // Handshake Packet
         buf.write_u8(0x00)?; // ID
         buf.write_varint(4)?; // Protocol Version
-        buf.write_string(ip)?; // Host
-        buf.write_u16::<BigEndian>(port)?; // Port
+        buf.write_string(&addr.ip().to_string())?; // Host
+        buf.write_u16::<BigEndian>(addr.port())?; // Port
         buf.write_varint(1)?; // State
         s.write_payload(&buf)?;
     }
@@ -95,9 +95,7 @@ pub fn ping_response(ip: &str, port: u16) -> io::Result<String> {
     {
         // Response Packet
         s.read_payload(&mut buf)?;
-
         let mut c = Cursor::new(&buf);
-
         let id = c.read_varint()?; // ID
 
         if id != 0x00 { 
@@ -132,5 +130,5 @@ pub struct Player {
 pub struct Players {
     pub max: i64,
     pub online: i64,
-    pub sample: Vec<Player>,
+    pub sample: Option<Vec<Player>>,
 }
