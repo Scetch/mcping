@@ -5,33 +5,32 @@ extern crate serde_json;
 extern crate byteorder;
 #[macro_use] extern crate serenity;
 #[macro_use] extern crate lazy_static;
+extern crate itertools;
 
 use response::{ ping_response, Response } ;
 mod response;
 
+use itertools::Itertools;
 use serenity::client::Client;
 use serenity::prelude::EventHandler;
 use serenity::framework::standard::StandardFramework;
 use serenity::builder::CreateEmbed;
 
 lazy_static! {
-    static ref SERVER_ADDR: String = std::env::var("MC_SERVER")
-        .expect("MC_SERVER environment variable is not set.");
+    static ref SERVER_ADDR: String = std::env::var("MC_SERVER").expect("MC_SERVER environment variable is not set.");
 }
 
 struct Handler;
 impl EventHandler for Handler {}
 
 fn main() {
-    let token = std::env::var("DISCORD_TOKEN")
-        .expect("DISCORD_TOKEN environment variable not set.");
-    let mut client = Client::new(&token, Handler)
-        .expect("Could not create client.");
+    let token = std::env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN environment variable not set.");
+    let mut client = Client::new(&token, Handler).expect("Could not create client.");
 
     client.with_framework(StandardFramework::new()
         .configure(|c| c.prefix("~"))
         .cmd("ping", ping));
-
+        
     if let Err(e) = client.start() {
         println!("Error: {:?}", e);
     }
@@ -62,24 +61,14 @@ command!(ping(_ctx, msg) {
             };
 
             let build_embed = |e: CreateEmbed| {
-                let online = r.players.sample
-                    .map(|sample| {
-                        sample.iter()
-                            .enumerate()
-                            .fold(String::new(), |mut s, (idx, p)| {
-                                s.push_str(&p.name);
-                                if idx < sample.len() - 1 {
-                                    s.push_str(", ");   
-                                }
-                                s
-                            })
-                    })
-                    .unwrap_or("None".to_string());
-
                 e.title(r.description)
                     .thumbnail("attachment://icon.png")
                     .field("Players", format!("{}/{}", r.players.online, r.players.max), true)
-                    .field("Online", online, true)
+                    .field("Online", {
+                        r.players.sample
+                            .map(|s| s.into_iter().map(|p| p.name).join(", "))
+                            .unwrap_or("None".to_string())
+                    }, true)
                     .footer(|f| f.text(SERVER_ADDR.as_str()))
             };
 
