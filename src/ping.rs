@@ -1,22 +1,34 @@
 use std::net::{ TcpStream, SocketAddr };
 use std::io::{ self, Cursor, Read, Write };
 
+use error;
+use base64;
 use byteorder::{ BigEndian, ReadBytesExt, WriteBytesExt };
+use serde_json;
 
 /// Adds methods to read Minecraft datatypes to any type
 /// that is both Read and ReadBytesExt
 trait ReadMinecraftExt: Read + ReadBytesExt {
     fn read_varint(&mut self) -> io::Result<i32> {
-        let mut i = 0; 
-        let mut j = 0;
+        let mut size = 0;
+        let mut res = 0;
+
         loop {
-            let k = self.read_u8()? as i32;
-            i |= (k & 0x7F) << j * 7;
-            j += 1;
-            if j > 5 { panic!("VarInt too big"); }
-            if (k & 0x80) != 128 { break; }
+            let cur = self.read_u8()?;
+            let val = (cur & 0b01111111) as i32;
+            res |= val << (7 * size);
+
+            size += 1;
+            if size > 5 {
+                return Err(::std::io::Error::new(::std::io::ErrorKind::Other, "VarInt too big!"));
+            }
+
+            if cur & 0b10000000 == 0 {
+                break;
+            }
         }
-        Ok(i)
+
+        Ok(res)
     }
 
     fn read_string(&mut self) -> io::Result<String> {
@@ -41,12 +53,18 @@ impl<T> ReadMinecraftExt for T where T: Read + ReadBytesExt {}
 trait WriteMinecraftExt: Write + WriteBytesExt {
     fn write_varint(&mut self, mut val: i32) -> io::Result<()> {
         loop {
-            if (val & 0xFFFFFF80) == 0 {
-                self.write_u8(val as u8)?;
+            let mut tmp = (val & 0b01111111) as u8;
+            val >>= 7;
+            
+            if val != 0 {
+                tmp |= 0b10000000;
+            }
+
+            self.write_u8(tmp)?;
+        
+            if val == 0 {
                 return Ok(());
             }
-            self.write_u8((val & 0x7F | 0x80) as u8)?;
-            val >>= 7;
         }
     }
 
@@ -66,7 +84,7 @@ trait WriteMinecraftExt: Write + WriteBytesExt {
 impl<T> WriteMinecraftExt for T where T: Write + WriteBytesExt {}
 
 /// Ping the server and get a response.
-pub fn ping_response(addr: &str) -> io::Result<String> {
+pub fn get_response(addr: &str) -> error::Result<Response> {
     let addr: SocketAddr = addr.parse().expect("Invalid ip address.");
     let mut s = TcpStream::connect(addr)?;
 
@@ -102,7 +120,8 @@ pub fn ping_response(addr: &str) -> io::Result<String> {
             panic!("Packet ID is not response.");
         }
 
-        Ok(c.read_string()?) // Response
+        let response = c.read_string()?;
+        Ok(serde_json::from_str::<Response>(&response)?)
     }
 }
 
@@ -131,4 +150,13 @@ pub struct Players {
     pub max: i64,
     pub online: i64,
     pub sample: Option<Vec<Player>>,
+}
+
+pub fn decode_icon(icon: Option<String>) -> error::Result<Option<Vec<u8>>> {
+    match icon {
+        Some(s) => {
+            Ok(Some(base64::decode_config(&s.as_bytes()["data:image/png;base64;".len()..], base64::MIME)?))
+        }
+        None => Ok(None),
+    }
 }
