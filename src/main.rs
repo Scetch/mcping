@@ -5,7 +5,7 @@ extern crate itertools;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
-#[macro_use] extern crate serenity;
+extern crate serenity;
 extern crate toml;
 
 mod error;
@@ -14,6 +14,7 @@ mod ping;
 use std::fs::File;
 use std::io::prelude::*;
 
+use ping::Connection;
 use itertools::Itertools;
 use serenity::client::{ Client, Context };
 use serenity::prelude::EventHandler;
@@ -33,7 +34,8 @@ impl EventHandler for Handler {
         let chan = msg.channel_id;
 
         // Extract the information we want from the response.
-        let res = ping::get_response(&self.addr)
+        let res = Connection::new(&self.addr)
+            .and_then(|mut c| c.get_status())
             .and_then(|r| {
                 // The icon is a base64 encoded PNG so we must decode that first.
                 let icon = ping::decode_icon(r.favicon)?;
