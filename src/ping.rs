@@ -1,9 +1,11 @@
-use std::net::{ TcpStream, SocketAddr };
 use std::io::{ self, Cursor, Read, Write };
+use std::net::{ TcpStream, SocketAddr };
+use std::time::Instant;
 
-use error;
 use base64;
 use byteorder::{ BigEndian, ReadBytesExt, WriteBytesExt };
+use failure::{ self, Error };
+use rand;
 use serde_json;
 
 trait ReadMinecraftExt: Read + ReadBytesExt {
@@ -80,14 +82,20 @@ pub struct Players {
     pub sample: Option<Vec<Player>>,
 }
 
-pub fn decode_icon(icon: Option<String>) -> error::Result<Option<Vec<u8>>> {
+pub fn decode_icon(icon: Option<String>) -> Result<Option<Vec<u8>>, Error> {
     match icon {
         Some(s) => Ok(Some(base64::decode_config(&s.as_bytes()["data:image/png;base64;".len()..], base64::MIME)?)),
         None => Ok(None),
     }
 }
 
-#[allow(dead_code)] // TODO: Handle Pong and Ping
+#[derive(Debug, Fail)]
+#[fail(display = "Invalid packet response `{:?}`", packet)]
+pub struct InvalidPacket {
+    packet: Packet,
+}
+
+#[derive(Debug)]
 enum Packet {
     Handshake { version: i32, host: String, port: u16, next_state: i32, },
     Response { response: String, },
@@ -103,8 +111,10 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(addr: &str) -> error::Result<Self> {
-        let addr = addr.parse::<SocketAddr>().expect("Invalid server address.");
+    pub fn new<A>(addr: A) -> Result<Self, Error>
+        where A: Into<SocketAddr>
+    {
+        let addr = addr.into();
         Ok(Self {
             stream: TcpStream::connect(addr)?,
             host: addr.ip().to_string(),
@@ -112,15 +122,36 @@ impl Connection {
         })
     }
 
-    pub fn get_status(&mut self) -> error::Result<Response> {
+    pub fn get_status(&mut self) -> Result<(u64, Response), Error> {
         let (host, port) = (self.host.clone(), self.port);
+        // Handshake
         self.send_packet(Packet::Handshake { version: 4, host: host, port: port, next_state: 1 })?;
+        
+        // JSON Request
         self.send_packet(Packet::Request {})?;
 
-        match self.read_packet()? {
-            Packet::Response { response } => Ok(serde_json::from_str(&response)?),
-            _ => panic!("Invalid response packet."),
-        }
+        let resp = match self.read_packet()? {
+            Packet::Response { response } => serde_json::from_str(&response)?,
+            p => return Err(Error::from(InvalidPacket { packet: p })),
+        };
+
+        // Ping Request
+        let r = rand::random();
+        self.send_packet(Packet::Ping { payload: r, })?;
+
+        let before = Instant::now();
+
+        let ping = match self.read_packet()? {
+            Packet::Pong { payload } if payload == r => {
+                // Calculate the difference in time from now and before as milliseconds
+                let diff = Instant::now() - before;
+                diff.as_secs() * 1000 + diff.subsec_nanos() as u64 / 1_000_000
+            }
+            Packet::Pong { .. } => return Err(failure::err_msg("Invalid ping token.")),
+            p => return Err(Error::from(InvalidPacket { packet: p })),
+        };
+
+        Ok((ping, resp))
     }
 
     fn send_packet(&mut self, p: Packet) -> io::Result<()> {

@@ -1,42 +1,108 @@
 extern crate base64;
 extern crate byteorder;
-#[macro_use] extern crate error_chain;
+extern crate dns_lookup;
+extern crate failure;
+#[macro_use] extern crate failure_derive;
 extern crate itertools;
+extern crate rand;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate serenity;
 extern crate toml;
 
-mod error;
-mod ping;
-
 use std::fs::File;
 use std::io::prelude::*;
+use std::net::IpAddr;
 
 use ping::Connection;
+use failure::Error;
 use itertools::Itertools;
 use serenity::client::{ Client, Context };
 use serenity::prelude::EventHandler;
 use serenity::builder::CreateEmbed;
 use serenity::model::channel::Message;
+use serenity::model::gateway::{ Ready, Game };
+
+mod ping;
+
+fn main() {
+    let cfg = load_config().expect("Couldn't load config.");
+    let handler = Handler::new(cfg.address).expect("Could not create handler.");
+    let mut client = Client::new(&cfg.token, handler).expect("Could not create client.");
+    client.start().expect("Could not start client.");
+}
+
+/// Configuration file with a discord token and server address.
+#[derive(Debug, Deserialize)]
+struct Config {
+    token: String,
+    address: String,
+}
+
+/// Loads a config file with a discord token and server address.
+fn load_config() -> Result<Config, Error> {
+    // The config file will be located in the same directory as the bot.
+    let mut path = std::env::current_exe()?;
+    path.set_file_name("Config.toml");
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(toml::from_str(&contents)?)
+}
 
 struct Handler {
-    addr: String,
+    host: String,
+    addr: (IpAddr, u16),
+}
+
+impl Handler {
+    fn new<S>(host: S) -> Result<Self, Error>
+        where S: Into<String>
+    {
+        // We will keep this host string to display in the embed messages.
+        let host = host.into();
+
+        let addr = {
+            let mut parts = host.split(':');
+            let host = parts.next().expect("Missing configuration host.");
+
+            // Try and get an ip address from the given host.
+            let ip = dns_lookup::lookup_host(host)?.pop().unwrap();
+
+            // If a port exists we want to try and parse it and if not we will
+            // default to 25565 (Minecraft).
+            let port = if let Some(port) = parts.next() {
+                port.parse::<u16>()?
+            } else {
+                25565
+            };
+
+            (ip, port)
+        };
+
+        Ok(Handler { 
+            host: host,
+            addr: addr,
+        })
+    }
 }
 
 impl EventHandler for Handler {
+    fn ready(&self, ctx: Context, _: Ready) {
+        // When our bot is ready we want to set the game it's playing to Minecraft
+        ctx.set_game(Game::playing("Minecraft"));
+    }
+
     fn message(&self, _ctx: Context, msg: Message) {
-        if msg.content != "~ping" {
-            return;
-        }
+        if msg.content != "~ping" { return; }
 
         let chan = msg.channel_id;
 
-        // Extract the information we want from the response.
-        let res = Connection::new(&self.addr)
+        // Retrieve our response, decode the icon, and build our sample.
+        let res = Connection::new(self.addr)
             .and_then(|mut c| c.get_status())
-            .and_then(|r| {
+            .and_then(|(ping, r)| {
                 // The icon is a base64 encoded PNG so we must decode that first.
                 let icon = ping::decode_icon(r.favicon)?;
                 // Join the sample player names into a single string.
@@ -44,78 +110,38 @@ impl EventHandler for Handler {
                     .map(|s| s.into_iter().map(|p| p.name).join(", "))
                     .unwrap_or("None".to_string());
 
-                Ok((icon, r.description, r.players.online, r.players.max, sample))
+                Ok((icon, r.description, r.players.online, r.players.max, sample, ping))
             });
 
-        match res {
-            Ok((icon, desc, online, max, sample)) => {
+        // Attempt to send a message to this channel.
+        let msg = match res {
+            Ok((icon, desc, online, max, sample, ping)) => {
                 // Helper closure to create the basic embed without an icon.
                 let basic = |e: CreateEmbed| {
                     e.title(desc)
                         .field("Players", format!("{}/{}", online, max), true)
                         .field("Online", sample, true)
-                        .footer(|f| f.text(&self.addr))
+                        .footer(|f| f.text(&format!("{} | {} ms", &self.host, ping)))
                 };
 
                 if let Some(icon) = icon {
-                    // If there is an icon we will send it as a file. We must first send the file and
-                    // then edit the message with an embed because they can't be sent at the same time.
-                    let files = [(icon.as_slice(), "icon.png")];
-                    chan.send_files(files.iter().cloned(), |m| m)
-                        .and_then(|mut m| {
-                            // Add the embed to the message that has the file and set the embed thumbnail location.
-                            m.edit(|m| {
-                                m.embed(|e| {
-                                    basic(e)
-                                        .thumbnail("attachment://icon.png")
-                                })
-                            })
-                        })
-                        .expect("Could not send message.");
+                    // If there is an icon we want to send this message with the icon data.
+                    let files = vec![(icon.as_slice(), "icon.png")];
+                    chan.send_files(files, |m| m.embed(|e| basic(e).thumbnail("attachment://icon.png")))
                 } else {
                     // If there isn't a file being sent we can just send a normal message.
                     chan.send_message(|m| m.embed(basic))
-                        .expect("Could not send message.");
                 }
             }
             Err(err) => {
-                // If there is an error getting the response we will send a message to notify the person
-                // requesting the response with the error message.
-                chan.send_message(|m| {
-                        m.embed(|e| {
-                            e.title("Error")
-                                .description(&err.to_string())
-                        })
-                    })
-                    .expect("Could not send message.");
+                // If there is an error we will send a message with the error content.
+                chan.send_message(|m| m.embed(|e| e.title("Error").description(&err.to_string())))
             }
+        };
+
+        // Check if there was an error sending the message.
+        if let Err(e) = msg {
+            println!("Error sending message: {}", e);
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct Config {
-    token: String,
-    address: String,
-}
-
-fn main() {
-    let mut path = std::env::current_exe().unwrap();
-    path.set_file_name("Config.toml");
-
-    let cfg: Config = {
-        let contents = File::open(path)
-            .and_then(|mut f| {
-                let mut s = String::new();
-                f.read_to_string(&mut s)?;
-                Ok(s)
-            })
-            .expect("Could not get config file.");
-
-        toml::from_str(&contents).expect("Could not parse config file.")
-    };
-
-    let handler = Handler { addr: cfg.address };
-    let mut client = Client::new(&cfg.token, handler).expect("Could not create client.");
-    client.start().expect("Could not start client.");
 }
