@@ -56,10 +56,15 @@ trait WriteMinecraftExt: Write + WriteBytesExt {
 impl<T> WriteMinecraftExt for T where T: Write + WriteBytesExt {}
 
 #[derive(Deserialize)]
+pub struct Text {
+    pub text: String,
+}
+
+#[derive(Deserialize)]
 pub struct Response {
     pub version: Version,
     pub players: Players,
-    pub description: String,
+    pub description: Text,
     pub favicon: Option<String>,
 }
 

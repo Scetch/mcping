@@ -22,7 +22,6 @@ use serenity::client::{ Client, Context };
 use serenity::prelude::EventHandler;
 use serenity::builder::CreateEmbed;
 use serenity::model::channel::Message;
-use serenity::model::gateway::{ Ready, Game };
 
 mod ping;
 
@@ -42,10 +41,7 @@ struct Config {
 
 /// Loads a config file with a discord token and server address.
 fn load_config() -> Result<Config, Error> {
-    // The config file will be located in the same directory as the bot.
-    let mut path = std::env::current_exe()?;
-    path.set_file_name("Config.toml");
-    let mut file = File::open(path)?;
+    let mut file = File::open("config.toml")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     Ok(toml::from_str(&contents)?)
@@ -89,11 +85,6 @@ impl Handler {
 }
 
 impl EventHandler for Handler {
-    fn ready(&self, ctx: Context, _: Ready) {
-        // When our bot is ready we want to set the game it's playing to Minecraft
-        ctx.set_game(Game::playing("Minecraft"));
-    }
-
     fn message(&self, _ctx: Context, msg: Message) {
         if msg.content != "~ping" { return; }
 
@@ -118,7 +109,7 @@ impl EventHandler for Handler {
             Ok((icon, desc, online, max, sample, ping)) => {
                 // Helper closure to create the basic embed without an icon.
                 let basic = |e: CreateEmbed| {
-                    e.title(desc)
+                    e.title(desc.text)
                         .field("Players", format!("{}/{}", online, max), true)
                         .field("Online", sample, true)
                         .footer(|f| f.text(&format!("{} | {} ms", &self.host, ping)))
