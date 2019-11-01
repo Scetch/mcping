@@ -1,16 +1,3 @@
-extern crate base64;
-extern crate byteorder;
-extern crate dns_lookup;
-extern crate failure;
-#[macro_use] extern crate failure_derive;
-extern crate itertools;
-extern crate rand;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
-extern crate serde_json;
-extern crate serenity;
-extern crate toml;
-
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::IpAddr;
@@ -22,6 +9,8 @@ use serenity::client::{ Client, Context };
 use serenity::prelude::EventHandler;
 use serenity::builder::CreateEmbed;
 use serenity::model::channel::Message;
+
+use serde_derive::Deserialize;
 
 mod ping;
 

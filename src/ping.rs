@@ -3,9 +3,11 @@ use std::net::{ TcpStream, SocketAddr };
 use std::time::Instant;
 
 use byteorder::{ BigEndian, ReadBytesExt, WriteBytesExt };
-use failure::{ self, Error };
+use failure::{ self, Error, Fail };
 use rand;
 use serde_json;
+
+use serde_derive::Deserialize;
 
 trait ReadMinecraftExt: Read + ReadBytesExt {
     fn read_varint(&mut self) -> io::Result<i32> {
