@@ -95,7 +95,10 @@ impl EventHandler for Handler {
             .and_then(|mut c| c.get_status())
             .and_then(|(ping, r)| {
                 // The icon is a base64 encoded PNG so we must decode that first.
-                let icon = ping::decode_icon(r.favicon)?;
+                let icon = r.favicon
+                    .map(|i| base64::decode_config(i.trim_start_matches("data:image/png;base64;"), base64::MIME))
+                    .transpose()?;
+
                 // Join the sample player names into a single string.
                 let sample = r.players.sample
                     .map(|s| s.into_iter().map(|p| p.name).join(", "))

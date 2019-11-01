@@ -2,7 +2,6 @@ use std::io::{ self, Cursor, Read, Write };
 use std::net::{ TcpStream, SocketAddr };
 use std::time::Instant;
 
-use base64;
 use byteorder::{ BigEndian, ReadBytesExt, WriteBytesExt };
 use failure::{ self, Error };
 use rand;
@@ -85,13 +84,6 @@ pub struct Players {
     pub max: i64,
     pub online: i64,
     pub sample: Option<Vec<Player>>,
-}
-
-pub fn decode_icon(icon: Option<String>) -> Result<Option<Vec<u8>>, Error> {
-    match icon {
-        Some(s) => Ok(Some(base64::decode_config(&s.as_bytes()["data:image/png;base64;".len()..], base64::MIME)?)),
-        None => Ok(None),
-    }
 }
 
 #[derive(Debug, Fail)]
