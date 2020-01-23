@@ -2,15 +2,15 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::IpAddr;
 
-use ping::Connection;
 use failure::Error;
 use itertools::Itertools;
-use serenity::client::{ Client, Context };
-use serenity::prelude::EventHandler;
-use serenity::builder::CreateEmbed;
+use ping::Connection;
+use serenity::client::{Client, Context};
+use serenity::http::AttachmentType;
 use serenity::model::channel::Message;
+use serenity::prelude::EventHandler;
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 mod ping;
 
@@ -43,7 +43,8 @@ struct Handler {
 
 impl Handler {
     fn new<S>(host: S) -> Result<Self, Error>
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         // We will keep this host string to display in the embed messages.
         let host = host.into();
@@ -66,7 +67,7 @@ impl Handler {
             (ip, port)
         };
 
-        Ok(Handler { 
+        Ok(Handler {
             host: host,
             addr: addr,
         })
@@ -74,8 +75,10 @@ impl Handler {
 }
 
 impl EventHandler for Handler {
-    fn message(&self, _ctx: Context, msg: Message) {
-        if msg.content != "~ping" { return; }
+    fn message(&self, context: Context, msg: Message) {
+        if msg.content != "~ping" {
+            return;
+        }
 
         let chan = msg.channel_id;
 
@@ -84,41 +87,73 @@ impl EventHandler for Handler {
             .and_then(|mut c| c.get_status())
             .and_then(|(ping, r)| {
                 // The icon is a base64 encoded PNG so we must decode that first.
-                let icon = r.favicon
-                    .map(|i| base64::decode_config(i.trim_start_matches("data:image/png;base64;"), base64::MIME))
+                let icon = r
+                    .favicon
+                    .map(|i| {
+                        base64::decode_config(
+                            i.trim_start_matches("data:image/png;base64;"),
+                            base64::MIME,
+                        )
+                    })
                     .transpose()?;
 
                 // Join the sample player names into a single string.
-                let sample = r.players.sample
+                let sample = r
+                    .players
+                    .sample
                     .map(|s| s.into_iter().map(|p| p.name).join(", "))
                     .unwrap_or("None".to_string());
 
-                Ok((icon, r.description, r.players.online, r.players.max, sample, ping))
+                Ok((
+                    icon,
+                    r.description,
+                    r.players.online,
+                    r.players.max,
+                    sample,
+                    ping,
+                ))
             });
 
         // Attempt to send a message to this channel.
         let msg = match res {
-            Ok((icon, desc, online, max, sample, ping)) => {
-                // Helper closure to create the basic embed without an icon.
-                let basic = |e: CreateEmbed| {
-                    e.title(desc.text)
-                        .field("Players", format!("{}/{}", online, max), true)
-                        .field("Online", sample, true)
-                        .footer(|f| f.text(&format!("{} | {} ms", &self.host, ping)))
-                };
+            Ok((icon, desc, online, max, sample, ping)) => chan.send_message(&context.http, |m| {
+                m.embed(|e| {
+                    e.title(desc.text);
+                    e.fields(vec![
+                        ("Players", format!("{}/{}", online, max), true),
+                        ("Online", sample, true),
+                    ]);
+                    e.footer(|f| {
+                        f.text(format!("{} | {} ms", &self.host, ping));
+                        f
+                    });
+
+                    if icon.is_some() {
+                        e.thumbnail("attachment://icon.png");
+                    }
+
+                    e
+                });
 
                 if let Some(icon) = icon {
-                    // If there is an icon we want to send this message with the icon data.
-                    let files = vec![(icon.as_slice(), "icon.png")];
-                    chan.send_files(files, |m| m.embed(|e| basic(e).thumbnail("attachment://icon.png")))
-                } else {
-                    // If there isn't a file being sent we can just send a normal message.
-                    chan.send_message(|m| m.embed(basic))
+                    m.add_file(AttachmentType::Bytes {
+                        data: icon.into(),
+                        filename: String::from("icon.png"),
+                    });
                 }
-            }
+
+                m
+            }),
             Err(err) => {
                 // If there is an error we will send a message with the error content.
-                chan.send_message(|m| m.embed(|e| e.title("Error").description(&err.to_string())))
+                chan.send_message(&context.http, |m| {
+                    m.embed(|e| {
+                        e.title("Error");
+                        e.description(&err.to_string());
+                        e
+                    });
+                    m
+                })
             }
         };
 
