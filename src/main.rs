@@ -16,7 +16,7 @@ mod ping;
 
 fn main() {
     let cfg = load_config().expect("Couldn't load config.");
-    let handler = Handler::new(cfg.address).expect("Could not create handler.");
+    let handler = Handler::new(cfg.address, cfg.command).expect("Could not create handler.");
     let mut client = Client::new(&cfg.token, handler).expect("Could not create client.");
     client.start().expect("Could not start client.");
 }
@@ -26,6 +26,7 @@ fn main() {
 struct Config {
     token: String,
     address: String,
+    command: String,
 }
 
 /// Loads a config file with a discord token and server address.
@@ -39,10 +40,11 @@ fn load_config() -> Result<Config, Error> {
 struct Handler {
     host: String,
     addr: (IpAddr, u16),
+    command: String,
 }
 
 impl Handler {
-    fn new<S>(host: S) -> Result<Self, Error>
+    fn new<S>(host: S, command: String) -> Result<Self, Error>
     where
         S: Into<String>,
     {
@@ -70,13 +72,18 @@ impl Handler {
         Ok(Handler {
             host: host,
             addr: addr,
+            command: command,
         })
     }
 }
 
 impl EventHandler for Handler {
     fn message(&self, context: Context, msg: Message) {
-        if msg.content != "~ping" {
+        let cmd = msg.content.split_whitespace()
+            .next()
+            .filter(|&cmd| cmd == self.command);
+
+        if cmd.is_none() {
             return;
         }
 

@@ -7,13 +7,15 @@ Discord bot written in Rust that pings a Minecraft server with the command `~pin
 Create a config file called `config.toml` in the root directory of the project with the following:
 
 ```
-token = "TOKEN"
-address = "ADDRESS"
+token = ""
+address = ""
+command = ""
 ```
 
 Where
-- `TOKEN` is the discord bot token
-- `ADDRESS` is the Minecraft server address
+- `token` is the discord bot token
+- `address` is the Minecraft server address
+- `command` is the command that will trigger the ping, for example `~ping`
 
 ## Running
 
