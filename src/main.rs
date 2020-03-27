@@ -79,7 +79,9 @@ impl Handler {
 
 impl EventHandler for Handler {
     fn message(&self, context: Context, msg: Message) {
-        let cmd = msg.content.split_whitespace()
+        let cmd = msg
+            .content
+            .split_whitespace()
             .next()
             .filter(|&cmd| cmd == self.command);
 
@@ -105,11 +107,25 @@ impl EventHandler for Handler {
                     .transpose()
                     .unwrap_or(None);
 
+                let sanitize = |s: &str| {
+                    s.chars()
+                        .fold(String::with_capacity(s.len()), |mut s, c| {
+                            match c {
+                                '*' | '_' | '~' | '>' | '`' => {
+                                    s.push('\\');
+                                    s.push(c);
+                                }
+                                _ => s.push(c),
+                            }
+                            s
+                        })
+                };
+
                 // Join the sample player names into a single string.
                 let sample = r
                     .players
                     .sample
-                    .map(|s| s.into_iter().map(|p| p.name).join(", "))
+                    .map(|s| s.into_iter().map(|p| sanitize(&p.name)).join(", "))
                     .unwrap_or("None".to_string());
 
                 Ok((
