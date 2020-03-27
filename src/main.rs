@@ -98,11 +98,12 @@ impl EventHandler for Handler {
                     .favicon
                     .map(|i| {
                         base64::decode_config(
-                            i.trim_start_matches("data:image/png;base64;"),
-                            base64::MIME,
+                            i.trim_start_matches("data:image/png;base64,"),
+                            base64::STANDARD,
                         )
                     })
-                    .transpose()?;
+                    .transpose()
+                    .unwrap_or(None);
 
                 // Join the sample player names into a single string.
                 let sample = r
