@@ -1,6 +1,8 @@
 # mcping
 
-Discord bot written in Rust that pings a Minecraft server with the command `~ping` and displays the status information in chat.
+Discord bot written in Rust that pings a Minecraft server with a custom command and displays the status information in chat.
+
+![screenshot](screenshot.png)
 
 ## Config
 
@@ -15,7 +17,7 @@ command = ""
 Where
 - `token` is the discord bot token
 - `address` is the Minecraft server address
-- `command` is the command that will trigger the ping, for example `~ping`
+- `command` is the command that will trigger the ping, for example `~ping` or `~minecraft`
 
 ## Running
 
