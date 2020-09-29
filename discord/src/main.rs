@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::IpAddr;
 
-use failure::Error;
+use anyhow::Context as AnyhowContext;
 use itertools::Itertools;
 use mcping::Connection;
 use serenity::client::{Client, Context};
@@ -12,11 +12,17 @@ use serenity::prelude::EventHandler;
 
 use serde::Deserialize;
 
-fn main() {
-    let cfg = load_config().expect("Couldn't load config.");
-    let handler = Handler::new(cfg.address, cfg.command).expect("Could not create handler.");
-    let mut client = Client::new(&cfg.token, handler).expect("Could not create client.");
-    client.start().expect("Could not start client.");
+fn main() -> Result<(), anyhow::Error> {
+    let cfg = load_config().with_context(|| format!("failed to load config"))?;
+    let handler = Handler::new(cfg.address, cfg.command)
+        .with_context(|| format!("failed to create handler"))?;
+    let mut client = Client::new(&cfg.token, handler)
+        .with_context(|| format!("failed to create Discord client"))?;
+    client
+        .start()
+        .with_context(|| format!("failed to start Discord client"))?;
+
+    Ok(())
 }
 
 /// Configuration file with a discord token and server address.
@@ -28,11 +34,16 @@ struct Config {
 }
 
 /// Loads a config file with a discord token and server address.
-fn load_config() -> Result<Config, Error> {
-    let mut file = File::open("config.toml")?;
+fn load_config() -> Result<Config, anyhow::Error> {
+    let config_file = "config.toml";
+
+    let mut file = File::open(config_file)
+        .with_context(|| format!("failed to open file '{}'", config_file))?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    Ok(toml::from_str(&contents)?)
+    file.read_to_string(&mut contents)
+        .with_context(|| format!("failed to read file '{}'", config_file))?;
+    Ok(toml::from_str(&contents)
+        .with_context(|| format!("failed to parse TOML loaded from file '{}'", config_file))?)
 }
 
 struct Handler {
@@ -42,7 +53,7 @@ struct Handler {
 }
 
 impl Handler {
-    fn new<S>(host: S, command: String) -> Result<Self, Error>
+    fn new<S>(host: S, command: String) -> Result<Self, anyhow::Error>
     where
         S: Into<String>,
     {
@@ -68,9 +79,9 @@ impl Handler {
         };
 
         Ok(Handler {
-            host: host,
-            addr: addr,
-            command: command,
+            host,
+            addr,
+            command,
         })
     }
 }
@@ -106,17 +117,16 @@ impl EventHandler for Handler {
                     .unwrap_or(None);
 
                 let sanitize = |s: &str| {
-                    s.chars()
-                        .fold(String::with_capacity(s.len()), |mut s, c| {
-                            match c {
-                                '*' | '_' | '~' | '>' | '`' => {
-                                    s.push('\\');
-                                    s.push(c);
-                                }
-                                _ => s.push(c),
+                    s.chars().fold(String::with_capacity(s.len()), |mut s, c| {
+                        match c {
+                            '*' | '_' | '~' | '>' | '`' => {
+                                s.push('\\');
+                                s.push(c);
                             }
-                            s
-                        })
+                            _ => s.push(c),
+                        }
+                        s
+                    })
                 };
 
                 // Join the sample player names into a single string.

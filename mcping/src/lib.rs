@@ -3,11 +3,23 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::Instant;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use failure::{self, Error, Fail};
 use rand;
 use serde_json;
+use thiserror::Error;
 
 use serde::Deserialize;
+
+#[derive(Debug, Error)]
+pub enum McPingError {
+    #[error("{0}")]
+    InvalidPacket(#[from] InvalidPacket),
+    #[error("an I/O error occurred")]
+    IoError(#[from] io::Error),
+    #[error("a JSON error occurred: {0}")]
+    JsonErr(#[from] serde_json::Error),
+    #[error("an invalid ping token was received")]
+    InvalidPingToken,
+}
 
 trait ReadMinecraftExt: Read + ReadBytesExt {
     fn read_varint(&mut self) -> io::Result<i32> {
@@ -96,8 +108,8 @@ pub struct Players {
     pub sample: Option<Vec<Player>>,
 }
 
-#[derive(Debug, Fail)]
-#[fail(display = "Invalid packet response `{:?}`", packet)]
+#[derive(Debug, Error)]
+#[error("invalid packet response `{packet:?}`")]
 pub struct InvalidPacket {
     packet: Packet,
 }
@@ -129,7 +141,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new<A>(addr: A) -> Result<Self, Error>
+    pub fn new<A>(addr: A) -> Result<Self, McPingError>
     where
         A: Into<SocketAddr>,
     {
@@ -141,7 +153,7 @@ impl Connection {
         })
     }
 
-    pub fn get_status(&mut self) -> Result<(u64, Response), Error> {
+    pub fn get_status(&mut self) -> Result<(u64, Response), McPingError> {
         let (host, port) = (self.host.clone(), self.port);
         // Handshake
         self.send_packet(Packet::Handshake {
@@ -156,7 +168,7 @@ impl Connection {
 
         let resp = match self.read_packet()? {
             Packet::Response { response } => serde_json::from_str(&response)?,
-            p => return Err(Error::from(InvalidPacket { packet: p })),
+            p => return Err(McPingError::from(InvalidPacket { packet: p })),
         };
 
         // Ping Request
@@ -171,8 +183,8 @@ impl Connection {
                 let diff = Instant::now() - before;
                 diff.as_secs() * 1000 + diff.subsec_nanos() as u64 / 1_000_000
             }
-            Packet::Pong { .. } => return Err(failure::err_msg("Invalid ping token.")),
-            p => return Err(Error::from(InvalidPacket { packet: p })),
+            Packet::Pong { .. } => return Err(McPingError::InvalidPingToken),
+            p => return Err(McPingError::from(InvalidPacket { packet: p })),
         };
 
         Ok((ping, resp))

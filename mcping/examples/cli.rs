@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use dialoguer::Input;
 use mcping::Connection;
 
@@ -29,8 +29,11 @@ fn main() -> Result<(), anyhow::Error> {
         (ip, port)
     };
 
-    let mut conn = Connection::new(addr).unwrap();
-    let (latency, status) = conn.get_status().unwrap();
+    let mut conn = Connection::new(addr)
+        .with_context(|| format!("establishing connection to Minecraft server failed"))?;
+    let (latency, status) = conn
+        .get_status()
+        .with_context(|| format!("getting Minecraft server status failed"))?;
 
     println!("version: {}", &status.version.name);
     println!("description: {}", &status.description.text);
