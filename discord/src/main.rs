@@ -4,15 +4,13 @@ use std::net::IpAddr;
 
 use failure::Error;
 use itertools::Itertools;
-use ping::Connection;
+use mcping::Connection;
 use serenity::client::{Client, Context};
 use serenity::http::AttachmentType;
 use serenity::model::channel::Message;
 use serenity::prelude::EventHandler;
 
 use serde::Deserialize;
-
-mod ping;
 
 fn main() {
     let cfg = load_config().expect("Couldn't load config.");

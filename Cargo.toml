@@ -1,18 +1,5 @@
-[package]
-name = "mcping"
-version = "0.1.0"
-authors = ["Scetch <lucierbrandon@gmail.com>"]
-edition = "2018"
-
-[dependencies]
-base64 = "0.9.0"
-byteorder = "1.3.2"
-dns-lookup = "1.0.1"
-failure = "0.1.1"
-failure_derive = "0.1.1"
-itertools = "0.8.2"
-rand = "0.7.3"
-serde = "1.0.104"
-serde_json = "1.0.45"
-serenity = "0.8.0"
-toml = "0.5.6"
+[workspace]
+members = [
+    "discord",
+    "mcping"
+]
