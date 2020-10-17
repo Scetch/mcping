@@ -9,14 +9,12 @@ use thiserror::Error as ThisError;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
-    #[error("{0}")]
-    InvalidPacket(#[from] InvalidPacket),
+    #[error("an invalid packet configuration was sent")]
+    InvalidPacket,
     #[error("an I/O error occurred")]
     IoError(#[from] io::Error),
     #[error("a JSON error occurred: {0}")]
     JsonErr(#[from] serde_json::Error),
-    #[error("an invalid ping token was received")]
-    InvalidPingToken,
     #[error("an invalid address was provided")]
     InvalidAddress,
     #[error("DNS lookup for the host provided failed")]
@@ -174,45 +172,7 @@ impl Connection {
         })
     }
 
-    fn get_status(&mut self) -> Result<(u64, Response), Error> {
-        let (host, port) = (self.host.clone(), self.port);
-
-        // Handshake
-        self.send_packet(Packet::Handshake {
-            version: 4,
-            host,
-            port,
-            next_state: 1,
-        })?;
-
-        // JSON Request
-        self.send_packet(Packet::Request {})?;
-
-        let resp = match self.read_packet()? {
-            Packet::Response { response } => serde_json::from_str(&response)?,
-            p => return Err(Error::from(InvalidPacket { packet: p })),
-        };
-
-        // Ping Request
-        let r = rand::random();
-        self.send_packet(Packet::Ping { payload: r })?;
-
-        let before = Instant::now();
-
-        let ping = match self.read_packet()? {
-            Packet::Pong { payload } if payload == r => {
-                // Calculate the difference in time from now and before as milliseconds
-                let diff = Instant::now() - before;
-                diff.as_secs() * 1000 + diff.subsec_nanos() as u64 / 1_000_000
-            }
-            Packet::Pong { .. } => return Err(Error::InvalidPingToken),
-            p => return Err(Error::from(InvalidPacket { packet: p })),
-        };
-
-        Ok((ping, resp))
-    }
-
-    fn send_packet(&mut self, p: Packet) -> io::Result<()> {
+    fn send_packet(&mut self, p: Packet) -> Result<(), Error> {
         let mut buf = Vec::new();
         match p {
             Packet::Handshake {
@@ -234,14 +194,14 @@ impl Connection {
                 buf.write_varint(0x01)?;
                 buf.write_u64::<BigEndian>(payload)?;
             }
-            _ => unimplemented!(),
+            _ => return Err(Error::InvalidPacket),
         }
         self.stream.write_varint(buf.len() as i32)?;
         self.stream.write_all(&buf)?;
         Ok(())
     }
 
-    fn read_packet(&mut self) -> io::Result<Packet> {
+    fn read_packet(&mut self) -> Result<Packet, Error> {
         let len = self.stream.read_varint()?;
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf)?;
@@ -254,12 +214,40 @@ impl Connection {
             0x01 => Packet::Pong {
                 payload: c.read_u64::<BigEndian>()?,
             },
-            _ => unimplemented!(),
+            _ => return Err(Error::InvalidPacket),
         })
     }
 }
 
 /// Retrieve the status of a given Minecraft server by its address
 pub fn get_status(address: &str) -> Result<(u64, Response), Error> {
-    Connection::new(address)?.get_status()
+    let mut conn = Connection::new(address)?;
+
+    // Handshake
+    conn.send_packet(Packet::Handshake {
+        version: 47,
+        host: conn.host.clone(),
+        port: conn.port,
+        next_state: 1,
+    })?;
+
+    // Request
+    conn.send_packet(Packet::Request {})?;
+
+    let resp = match conn.read_packet()? {
+        Packet::Response { response } => serde_json::from_str(&response)?,
+        _ => return Err(Error::InvalidPacket),
+    };
+
+    // Ping Request
+    let r = rand::random();
+    conn.send_packet(Packet::Ping { payload: r })?;
+
+    let before = Instant::now();
+    let ping = match conn.read_packet()? {
+        Packet::Pong { payload } if payload == r => (Instant::now() - before).as_millis() as u64,
+        _ => return Err(Error::InvalidPacket),
+    };
+
+    Ok((ping, resp))
 }

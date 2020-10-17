@@ -31,7 +31,7 @@ fn main() -> Result<(), mcping::Error> {
 
     println!("{}", sample);
 
-    println!("latency: {}", latency);
+    println!("latency: {}ms", latency);
 
     Ok(())
 }
