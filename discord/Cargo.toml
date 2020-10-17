@@ -1,15 +1,14 @@
 [package]
 name = "mcping-discord"
 version = "0.1.0"
-authors = ["Scetch <lucierbrandon@gmail.com>"]
+authors = ["Scetch <me@scet.ch>"]
 edition = "2018"
 
 [dependencies]
-base64 = "0.12.3"
-dns-lookup = "1.0.1"
 anyhow = "1.0"
+base64 = "0.12.3"
 itertools = "0.9.0"
-serde = "1.0.104"
-serenity = "0.8.0"
-toml = "0.5.6"
 mcping = { path = "../mcping" }
+serde = { version = "1", features = [ "derive" ] }
+serenity = "0.8"
+toml = "0.5"
