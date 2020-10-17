@@ -75,8 +75,6 @@ impl EventHandler for Handler {
         let chan = msg.channel_id;
 
         // Retrieve our response, decode the icon, and build our sample.
-        // let res = Connection::new(self.addr)
-        // .and_then(|mut c| c.get_status())
         let res = mcping::get_status(&self.addr).and_then(|(ping, r)| {
             // The icon is a base64 encoded PNG so we must decode that first.
             let icon = r
