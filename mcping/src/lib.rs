@@ -11,7 +11,7 @@ use thiserror::Error as ThisError;
 pub enum Error {
     #[error("an invalid packet configuration was sent")]
     InvalidPacket,
-    #[error("an I/O error occurred")]
+    #[error("an I/O error occurred: {0}")]
     IoError(#[from] io::Error),
     #[error("a JSON error occurred: {0}")]
     JsonErr(#[from] serde_json::Error),
