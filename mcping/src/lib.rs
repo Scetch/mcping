@@ -1,4 +1,4 @@
-//! Implements the Server List Ping (SLP) part of the Minecraft Modern protocol.
+//! Implementation of the Server List Ping (SLP) part of the Minecraft Modern protocol.
 //!
 //! See [here](https://wiki.vg/Server_List_Ping) for more information about the SLP.
 
