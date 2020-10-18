@@ -1,3 +1,7 @@
+//! Implements the Server List Ping (SLP) part of the Minecraft Modern protocol.
+//!
+//! See [here](https://wiki.vg/Server_List_Ping) for more information about the SLP.
+
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use serde::Deserialize;
 use std::{
@@ -84,23 +88,34 @@ impl Chat {
     }
 }
 
+/// The server status reponse
+///
+/// More information can be found [here](https://wiki.vg/Server_List_Ping).
 #[derive(Deserialize)]
 pub struct Response {
     pub version: Version,
+    /// Information about online players
     pub players: Players,
     pub description: Chat,
+    /// The server icon (a Base64-encoded PNG image)
     pub favicon: Option<String>,
 }
 
+/// Information about the server's version
 #[derive(Deserialize)]
 pub struct Version {
+    /// The name of the version the server is running
+    ///
+    /// In practice this comes in a large variety of different formats.
     pub name: String,
+    /// See https://wiki.vg/Protocol_version_numbers
     pub protocol: i64,
 }
 
 #[derive(Deserialize)]
 pub struct Player {
     pub name: String,
+    /// The player's UUID
     pub id: String,
 }
 
@@ -108,6 +123,9 @@ pub struct Player {
 pub struct Players {
     pub max: i64,
     pub online: i64,
+    /// A preview of which players are online
+    ///
+    /// In practice servers often don't send this or use it for more advertising
     pub sample: Option<Vec<Player>>,
 }
 
@@ -220,6 +238,8 @@ impl Connection {
 }
 
 /// Retrieve the status of a given Minecraft server by its address
+///
+/// Returns (latency_ms, response)
 pub fn get_status(address: &str) -> Result<(u64, Response), Error> {
     let mut conn = Connection::new(address)?;
 
