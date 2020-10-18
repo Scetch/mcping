@@ -2,7 +2,7 @@
 name = "mcping"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
-authors = ["Scetch <me@scet.ch>"]
+authors = ["Scetch <me@scet.ch>", "Cldfire <cldfire3@gmail.com>"]
 description = "Implementation of the Server List Ping (SLP) part of the Minecraft Modern protocol"
 keywords = ["minecraft", "ping", "server", "serverlistping", "status"]
 categories = ["api-bindings", "games", "network-programming"]
