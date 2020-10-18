@@ -1,45 +1,37 @@
-use std::io::{self, Cursor, Read, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::time::Instant;
-
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use rand;
-use serde_json;
-use thiserror::Error;
-
 use serde::Deserialize;
+use std::{
+    io::{self, Cursor, Read, Write},
+    net::TcpStream,
+    time::Instant,
+};
+use thiserror::Error as ThisError;
 
-#[derive(Debug, Error)]
-pub enum McPingError {
-    #[error("{0}")]
-    InvalidPacket(#[from] InvalidPacket),
-    #[error("an I/O error occurred")]
+#[derive(Debug, ThisError)]
+pub enum Error {
+    #[error("an invalid packet configuration was sent")]
+    InvalidPacket,
+    #[error("an I/O error occurred: {0}")]
     IoError(#[from] io::Error),
     #[error("a JSON error occurred: {0}")]
     JsonErr(#[from] serde_json::Error),
-    #[error("an invalid ping token was received")]
-    InvalidPingToken,
+    #[error("an invalid address was provided")]
+    InvalidAddress,
+    #[error("DNS lookup for the host provided failed")]
+    DnsLookupFailed,
 }
 
 trait ReadMinecraftExt: Read + ReadBytesExt {
     fn read_varint(&mut self) -> io::Result<i32> {
-        let mut size = 0;
-        let mut res = 0;
-
-        loop {
-            let cur = self.read_u8()?;
-            let val = (cur & 0b01111111) as i32;
-            res |= val << (7 * size);
-            size += 1;
-            if size > 5 {
-                return Err(io::Error::new(io::ErrorKind::Other, "VarInt too big!"));
-            }
-            if cur & 0b10000000 == 0 {
-                break;
+        let mut res = 0i32;
+        for i in 0..5 {
+            let part = self.read_u8()?;
+            res |= (part as i32 & 0x7F) << 7 * i;
+            if part & 0x80 == 0 {
+                return Ok(res);
             }
         }
-
-        Ok(res)
+        Err(io::Error::new(io::ErrorKind::Other, "VarInt too big!"))
     }
 
     fn read_string(&mut self) -> io::Result<String> {
@@ -54,17 +46,15 @@ impl<T> ReadMinecraftExt for T where T: Read + ReadBytesExt {}
 
 trait WriteMinecraftExt: Write + WriteBytesExt {
     fn write_varint(&mut self, mut val: i32) -> io::Result<()> {
-        loop {
-            let mut tmp = (val & 0b01111111) as u8;
-            val >>= 7;
-            if val != 0 {
-                tmp |= 0b10000000;
-            }
-            self.write_u8(tmp)?;
-            if val == 0 {
+        for _ in 0..5 {
+            if val & !0x7F == 0 {
+                self.write_u8(val as u8)?;
                 return Ok(());
             }
+            self.write_u8((val & 0x7F | 0x80) as u8)?;
+            val >>= 7;
         }
+        Err(io::Error::new(io::ErrorKind::Other, "VarInt too big!"))
     }
 
     fn write_string(&mut self, s: &str) -> io::Result<()> {
@@ -76,16 +66,29 @@ trait WriteMinecraftExt: Write + WriteBytesExt {
 
 impl<T> WriteMinecraftExt for T where T: Write + WriteBytesExt {}
 
+/// This is a partial implemenation of a Minecraft chat component limited to just text
+// TODO: Finish this object.
 #[derive(Deserialize)]
-pub struct Text {
-    pub text: String,
+#[serde(untagged)]
+pub enum Chat {
+    Text { text: String },
+    String(String),
+}
+
+impl Chat {
+    pub fn text(&self) -> &str {
+        match self {
+            Chat::Text { text } => text.as_str(),
+            Chat::String(s) => s.as_str(),
+        }
+    }
 }
 
 #[derive(Deserialize)]
 pub struct Response {
     pub version: Version,
     pub players: Players,
-    pub description: Text,
+    pub description: Chat,
     pub favicon: Option<String>,
 }
 
@@ -108,7 +111,7 @@ pub struct Players {
     pub sample: Option<Vec<Player>>,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, ThisError)]
 #[error("invalid packet response `{packet:?}`")]
 pub struct InvalidPacket {
     packet: Packet,
@@ -134,63 +137,42 @@ enum Packet {
     },
 }
 
-pub struct Connection {
+struct Connection {
     stream: TcpStream,
     host: String,
     port: u16,
 }
 
 impl Connection {
-    pub fn new<A>(addr: A) -> Result<Self, McPingError>
-    where
-        A: Into<SocketAddr>,
-    {
-        let addr = addr.into();
+    fn new(address: &str) -> Result<Self, Error> {
+        // Split the address up into it's parts, saving the host and port for later and converting the
+        // potential domain into an ip
+        let mut parts = address.split(':');
+
+        let host = parts.next().ok_or(Error::InvalidAddress)?.to_string();
+
+        // Attempt to get the ip addresses for the host, returning the first found
+        let ip = dns_lookup::lookup_host(&host)
+            .ok()
+            .and_then(|mut addresses| addresses.pop())
+            .ok_or(Error::DnsLookupFailed)?;
+
+        // If a port exists we want to try and parse it and if not we will
+        // default to 25565 (Minecraft)
+        let port = if let Some(port) = parts.next() {
+            port.parse::<u16>().map_err(|_| Error::InvalidAddress)?
+        } else {
+            25565
+        };
+
         Ok(Self {
-            stream: TcpStream::connect(addr)?,
-            host: addr.ip().to_string(),
-            port: addr.port(),
+            stream: TcpStream::connect((ip, port))?,
+            host,
+            port,
         })
     }
 
-    pub fn get_status(&mut self) -> Result<(u64, Response), McPingError> {
-        let (host, port) = (self.host.clone(), self.port);
-        // Handshake
-        self.send_packet(Packet::Handshake {
-            version: 4,
-            host: host,
-            port: port,
-            next_state: 1,
-        })?;
-
-        // JSON Request
-        self.send_packet(Packet::Request {})?;
-
-        let resp = match self.read_packet()? {
-            Packet::Response { response } => serde_json::from_str(&response)?,
-            p => return Err(McPingError::from(InvalidPacket { packet: p })),
-        };
-
-        // Ping Request
-        let r = rand::random();
-        self.send_packet(Packet::Ping { payload: r })?;
-
-        let before = Instant::now();
-
-        let ping = match self.read_packet()? {
-            Packet::Pong { payload } if payload == r => {
-                // Calculate the difference in time from now and before as milliseconds
-                let diff = Instant::now() - before;
-                diff.as_secs() * 1000 + diff.subsec_nanos() as u64 / 1_000_000
-            }
-            Packet::Pong { .. } => return Err(McPingError::InvalidPingToken),
-            p => return Err(McPingError::from(InvalidPacket { packet: p })),
-        };
-
-        Ok((ping, resp))
-    }
-
-    fn send_packet(&mut self, p: Packet) -> io::Result<()> {
+    fn send_packet(&mut self, p: Packet) -> Result<(), Error> {
         let mut buf = Vec::new();
         match p {
             Packet::Handshake {
@@ -212,14 +194,14 @@ impl Connection {
                 buf.write_varint(0x01)?;
                 buf.write_u64::<BigEndian>(payload)?;
             }
-            _ => unimplemented!(),
+            _ => return Err(Error::InvalidPacket),
         }
         self.stream.write_varint(buf.len() as i32)?;
         self.stream.write_all(&buf)?;
         Ok(())
     }
 
-    fn read_packet(&mut self) -> io::Result<Packet> {
+    fn read_packet(&mut self) -> Result<Packet, Error> {
         let len = self.stream.read_varint()?;
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf)?;
@@ -232,7 +214,40 @@ impl Connection {
             0x01 => Packet::Pong {
                 payload: c.read_u64::<BigEndian>()?,
             },
-            _ => unimplemented!(),
+            _ => return Err(Error::InvalidPacket),
         })
     }
+}
+
+/// Retrieve the status of a given Minecraft server by its address
+pub fn get_status(address: &str) -> Result<(u64, Response), Error> {
+    let mut conn = Connection::new(address)?;
+
+    // Handshake
+    conn.send_packet(Packet::Handshake {
+        version: 47,
+        host: conn.host.clone(),
+        port: conn.port,
+        next_state: 1,
+    })?;
+
+    // Request
+    conn.send_packet(Packet::Request {})?;
+
+    let resp = match conn.read_packet()? {
+        Packet::Response { response } => serde_json::from_str(&response)?,
+        _ => return Err(Error::InvalidPacket),
+    };
+
+    // Ping Request
+    let r = rand::random();
+    conn.send_packet(Packet::Ping { payload: r })?;
+
+    let before = Instant::now();
+    let ping = match conn.read_packet()? {
+        Packet::Pong { payload } if payload == r => (Instant::now() - before).as_millis() as u64,
+        _ => return Err(Error::InvalidPacket),
+    };
+
+    Ok((ping, resp))
 }
