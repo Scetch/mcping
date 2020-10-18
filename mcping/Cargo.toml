@@ -3,6 +3,10 @@ name = "mcping"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Scetch <me@scet.ch>"]
+description = "Implementation of the Server List Ping (SLP) part of the Minecraft Modern protocol"
+keywords = ["minecraft", "ping", "server", "serverlistping", "status"]
+categories = ["api-bindings", "games", "network-programming"]
+repository = "https://github.com/Scetch/mcping"
 edition = "2018"
 
 [dependencies]
