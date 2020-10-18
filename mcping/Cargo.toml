@@ -1,6 +1,7 @@
 [package]
 name = "mcping"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
 authors = ["Scetch <me@scet.ch>"]
 edition = "2018"
 
