@@ -1,0 +1,15 @@
+[package]
+name = "mcping-discord"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Scetch <me@scet.ch>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.12.3"
+itertools = "0.9.0"
+mcping = { path = "../mcping" }
+serde = { version = "1", features = [ "derive" ] }
+serenity = "0.8"
+toml = "0.5"
