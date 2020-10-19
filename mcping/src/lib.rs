@@ -10,6 +10,7 @@ use std::{
     time::Instant,
 };
 use thiserror::Error as ThisError;
+use trust_dns_resolver::{config::*, Resolver};
 
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -169,10 +170,13 @@ impl Connection {
 
         let host = parts.next().ok_or(Error::InvalidAddress)?.to_string();
 
-        // Attempt to get the ip addresses for the host, returning the first found
-        let ip = dns_lookup::lookup_host(&host)
+        // Attempt to lookup the ip of the server from an srv record, falling back on the ip from a host
+        let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
+        let ip = resolver
+            .srv_lookup(&["_minecraft._tcp.", &host].concat())
             .ok()
-            .and_then(|mut addresses| addresses.pop())
+            .and_then(|lookup| lookup.ip_iter().next())
+            .or_else(|| resolver.lookup_ip(&host).ok()?.iter().next())
             .ok_or(Error::DnsLookupFailed)?;
 
         // If a port exists we want to try and parse it and if not we will
