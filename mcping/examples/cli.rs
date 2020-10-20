@@ -1,4 +1,5 @@
 use dialoguer::Input;
+use mc_legacy_formatting::{PrintSpanColored, SpanIter};
 
 fn main() -> Result<(), mcping::Error> {
     let server_address = Input::<String>::new()
@@ -7,8 +8,18 @@ fn main() -> Result<(), mcping::Error> {
 
     let (latency, status) = mcping::get_status(&server_address)?;
 
-    println!("version: {}", &status.version.name);
-    println!("description: {}", &status.description.text());
+    print!("version: ");
+    SpanIter::new(&status.version.name)
+        .map(PrintSpanColored::from)
+        .for_each(|s| print!("{}", s));
+
+    println!();
+    println!("description:");
+    SpanIter::new(&status.description.text())
+        .map(PrintSpanColored::from)
+        .for_each(|s| print!("{}", s));
+
+    println!();
     println!(
         "players: {}/{}",
         &status.players.online, &status.players.max
@@ -16,20 +27,21 @@ fn main() -> Result<(), mcping::Error> {
 
     print!("sample: ");
 
-    let sample = status
+    status
         .players
         .sample
         .filter(|sample| !sample.is_empty())
         .map(|sample| {
-            sample
-                .iter()
-                .map(|player| player.name.as_str())
-                .collect::<Vec<&str>>()
-                .join(", ")
-        })
-        .unwrap_or_else(|| "N/A".to_string());
+            println!();
 
-    println!("{}", sample);
+            for player in sample {
+                SpanIter::new(&player.name)
+                    .map(PrintSpanColored::from)
+                    .for_each(|s| print!("  {}", s));
+                println!();
+            }
+        })
+        .unwrap_or_else(|| println!("N/A"));
 
     println!("latency: {}ms", latency);
 
