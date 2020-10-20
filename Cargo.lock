@@ -692,9 +692,9 @@ checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
 name = "mc-legacy-formatting"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d828584affff3934013191d69da583e1bc8c943dcf8fe17ca82daec1c4d2c85c"
+checksum = "92f9f4474324485ae9d641b79b1115769e47e367b24af3f3498bfe52a6180750"
 dependencies = [
  "bitflags",
  "colored",
