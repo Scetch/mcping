@@ -6,6 +6,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use serde::Deserialize;
 use std::{
     io::{self, Cursor, Read, Write},
+    net::IpAddr,
     net::TcpStream,
     time::Instant,
 };
@@ -170,22 +171,40 @@ impl Connection {
 
         let host = parts.next().ok_or(Error::InvalidAddress)?.to_string();
 
-        // Attempt to lookup the ip of the server from an srv record, falling back on the ip from a host
-        let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
-        let ip = resolver
-            .srv_lookup(&["_minecraft._tcp.", &host].concat())
-            .ok()
-            .and_then(|lookup| lookup.ip_iter().next())
-            .or_else(|| resolver.lookup_ip(&host).ok()?.iter().next())
-            .ok_or(Error::DnsLookupFailed)?;
-
         // If a port exists we want to try and parse it and if not we will
         // default to 25565 (Minecraft)
-        let port = if let Some(port) = parts.next() {
+        let mut port = if let Some(port) = parts.next() {
             port.parse::<u16>().map_err(|_| Error::InvalidAddress)?
         } else {
             25565
         };
+
+        // Attempt to lookup the ip of the server from an srv record, falling back on the ip from a host
+        let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
+
+        // Determine what host to lookup by doing the following:
+        // - Lookup the SRV record for the domain, if it exists perform a lookup of the ip from the target
+        //   and grab the port pointed at by the record.
+        //
+        //   Note: trust_dns_resolver should do a recursive lookup for an ip but it doesn't seem to at
+        //   the moment.
+        //
+        // - If the above failed in any way fall back to the normal ip lookup from the host provided
+        //   and use the provided port.
+        let lookup_ip =
+            |host: &str| -> Option<IpAddr> { resolver.lookup_ip(&host).ok()?.into_iter().next() };
+
+        let ip = resolver
+            .srv_lookup(&["_minecraft._tcp.", &host].concat())
+            .ok()
+            .and_then(|lookup| {
+                let record = lookup.into_iter().next()?;
+                let ip = lookup_ip(&record.target().to_string())?;
+                port = record.port();
+                Some(ip)
+            })
+            .or_else(|| lookup_ip(&host))
+            .ok_or(Error::DnsLookupFailed)?;
 
         Ok(Self {
             stream: TcpStream::connect((ip, port))?,

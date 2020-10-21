@@ -18,8 +18,8 @@ thiserror = "1.0"
 trust-dns-resolver = "0.19"
 
 [dev-dependencies]
-dialoguer = "0.6"
-mc-legacy-formatting = "0.1"
+dialoguer = "0.7"
+mc-legacy-formatting = "0.2"
 viuer = "0.1"
 base64 = "0.13"
 image = "0.23"

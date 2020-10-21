@@ -1,5 +1,5 @@
 use dialoguer::Input;
-use mc_legacy_formatting::{PrintSpanColored, SpanIter};
+use mc_legacy_formatting::SpanExt;
 
 fn main() -> Result<(), mcping::Error> {
     let server_address = Input::<String>::new()
@@ -9,14 +9,20 @@ fn main() -> Result<(), mcping::Error> {
     let (latency, status) = mcping::get_status(&server_address)?;
 
     print!("version: ");
-    SpanIter::new(&status.version.name)
-        .map(PrintSpanColored::from)
+    status
+        .version
+        .name
+        .span_iter()
+        .map(|s| s.wrap_colored())
         .for_each(|s| print!("{}", s));
 
     println!();
     println!("description:");
-    SpanIter::new(&status.description.text())
-        .map(PrintSpanColored::from)
+    status
+        .description
+        .text()
+        .span_iter()
+        .map(|s| s.wrap_colored())
         .for_each(|s| print!("{}", s));
 
     println!();
@@ -35,8 +41,10 @@ fn main() -> Result<(), mcping::Error> {
             println!();
 
             for player in sample {
-                SpanIter::new(&player.name)
-                    .map(PrintSpanColored::from)
+                player
+                    .name
+                    .span_iter()
+                    .map(|s| s.wrap_colored())
                     .for_each(|s| print!("{}", s));
                 println!();
             }
