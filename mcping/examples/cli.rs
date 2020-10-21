@@ -37,7 +37,7 @@ fn main() -> Result<(), mcping::Error> {
             for player in sample {
                 SpanIter::new(&player.name)
                     .map(PrintSpanColored::from)
-                    .for_each(|s| print!("  {}", s));
+                    .for_each(|s| print!("{}", s));
                 println!();
             }
         })
