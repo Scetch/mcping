@@ -7,7 +7,7 @@ use serenity::{
     model::channel::Message,
     prelude::EventHandler,
 };
-use std::{fs::File, io::prelude::*};
+use std::{fs::File, io::prelude::*, time::Duration};
 
 fn main() -> Result<(), anyhow::Error> {
     let cfg = load_config().with_context(|| format!("failed to load config"))?;
@@ -75,7 +75,7 @@ impl EventHandler for Handler {
         let chan = msg.channel_id;
 
         // Retrieve our response, decode the icon, and build our sample.
-        let res = mcping::get_status(&self.addr).and_then(|(ping, r)| {
+        let res = mcping::get_status(&self.addr, Duration::from_secs(10)).and_then(|(ping, r)| {
             // The icon is a base64 encoded PNG so we must decode that first.
             let icon = r
                 .favicon

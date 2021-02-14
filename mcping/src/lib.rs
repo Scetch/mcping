@@ -7,8 +7,8 @@ use serde::Deserialize;
 use std::{
     io::{self, Cursor, Read, Write},
     net::IpAddr,
-    net::TcpStream,
-    time::Instant,
+    net::{SocketAddr, TcpStream},
+    time::{Duration, Instant},
 };
 use thiserror::Error as ThisError;
 use trust_dns_resolver::{config::*, Resolver};
@@ -164,7 +164,7 @@ struct Connection {
 }
 
 impl Connection {
-    fn new(address: &str) -> Result<Self, Error> {
+    fn new(address: &str, timeout: Option<Duration>) -> Result<Self, Error> {
         // Split the address up into it's parts, saving the host and port for later and converting the
         // potential domain into an ip
         let mut parts = address.split(':');
@@ -206,8 +206,14 @@ impl Connection {
             .or_else(|| lookup_ip(&host))
             .ok_or(Error::DnsLookupFailed)?;
 
+        let socket_addr = SocketAddr::new(ip, port);
+
         Ok(Self {
-            stream: TcpStream::connect((ip, port))?,
+            stream: if let Some(timeout) = timeout {
+                TcpStream::connect_timeout(&socket_addr, timeout)?
+            } else {
+                TcpStream::connect(&socket_addr)?
+            },
             host,
             port,
         })
@@ -260,11 +266,35 @@ impl Connection {
     }
 }
 
-/// Retrieve the status of a given Minecraft server by its address
+/// Retrieve the status of a given Minecraft server by its `address`.
 ///
-/// Returns (latency_ms, response)
-pub fn get_status(address: &str) -> Result<(u64, Response), Error> {
-    let mut conn = Connection::new(address)?;
+/// A `timeout` can be optionally provided for use when attempting to connect
+/// to the server.
+///
+/// Returns `(latency_ms, response)`.
+///
+/// # Examples
+///
+/// Ping a server with no timeout:
+///
+/// ```no_run
+/// let (latency, response) = mcping::get_status("mc.hypixel.net", None)?;
+/// # Ok::<(), mcping::Error>(())
+/// ```
+///
+/// Ping a server with a timeout of 10 seconds:
+///
+/// ```no_run
+/// use std::time::Duration;
+///
+/// let (latency, response) = mcping::get_status("mc.hypixel.net", Duration::from_secs(10))?;
+/// # Ok::<(), mcping::Error>(())
+/// ```
+pub fn get_status(
+    address: &str,
+    timeout: impl Into<Option<Duration>>,
+) -> Result<(u64, Response), Error> {
+    let mut conn = Connection::new(address, timeout.into())?;
 
     // Handshake
     conn.send_packet(Packet::Handshake {
