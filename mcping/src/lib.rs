@@ -32,7 +32,7 @@ trait ReadMinecraftExt: Read + ReadBytesExt {
         let mut res = 0i32;
         for i in 0..5 {
             let part = self.read_u8()?;
-            res |= (part as i32 & 0x7F) << 7 * i;
+            res |= (part as i32 & 0x7F) << (7 * i);
             if part & 0x80 == 0 {
                 return Ok(res);
             }
