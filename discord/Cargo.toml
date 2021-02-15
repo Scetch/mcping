@@ -6,9 +6,9 @@ authors = ["Scetch <me@scet.ch>"]
 edition = "2018"
 
 [dependencies]
-anyhow = "1.0"
-base64 = "0.12.3"
-itertools = "0.9.0"
+anyhow = "1"
+base64 = "0.13"
+itertools = "0.10"
 mcping = { path = "../mcping" }
 serde = { version = "1", features = [ "derive" ] }
 serenity = "0.8"

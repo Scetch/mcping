@@ -1,7 +1,6 @@
-use std::time::Duration;
-
 use dialoguer::Input;
 use mc_legacy_formatting::SpanExt;
+use std::time::Duration;
 
 fn main() -> Result<(), mcping::Error> {
     let server_address = Input::<String>::new()
