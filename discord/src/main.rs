@@ -7,17 +7,16 @@ use serenity::{
     model::channel::Message,
     prelude::EventHandler,
 };
-use std::{fs::File, io::prelude::*};
+use std::{fs::File, io::prelude::*, time::Duration};
 
 fn main() -> Result<(), anyhow::Error> {
-    let cfg = load_config().with_context(|| format!("failed to load config"))?;
-    let handler = Handler::new(cfg.address, cfg.command)
-        .with_context(|| format!("failed to create handler"))?;
-    let mut client = Client::new(&cfg.token, handler)
-        .with_context(|| format!("failed to create Discord client"))?;
+    let cfg = load_config().with_context(|| "failed to load config")?;
+    let handler = Handler::new(cfg.address, cfg.command);
+    let mut client =
+        Client::new(&cfg.token, handler).with_context(|| "failed to create Discord client")?;
     client
         .start()
-        .with_context(|| format!("failed to start Discord client"))?;
+        .with_context(|| "failed to start Discord client")?;
 
     Ok(())
 }
@@ -49,14 +48,14 @@ struct Handler {
 }
 
 impl Handler {
-    fn new<S>(addr: S, command: String) -> Result<Self, anyhow::Error>
+    fn new<S>(addr: S, command: String) -> Self
     where
         S: Into<String>,
     {
-        Ok(Handler {
+        Handler {
             addr: addr.into(),
             command,
-        })
+        }
     }
 }
 
@@ -75,7 +74,7 @@ impl EventHandler for Handler {
         let chan = msg.channel_id;
 
         // Retrieve our response, decode the icon, and build our sample.
-        let res = mcping::get_status(&self.addr).and_then(|(ping, r)| {
+        let res = mcping::get_status(&self.addr, Duration::from_secs(10)).map(|(ping, r)| {
             // The icon is a base64 encoded PNG so we must decode that first.
             let icon = r
                 .favicon
@@ -106,16 +105,16 @@ impl EventHandler for Handler {
                 .players
                 .sample
                 .map(|s| s.into_iter().map(|p| sanitize(&p.name)).join(", "))
-                .unwrap_or("None".to_string());
+                .unwrap_or_else(|| "None".to_string());
 
-            Ok((
+            (
                 icon,
                 r.description,
                 r.players.online,
                 r.players.max,
                 sample,
                 ping,
-            ))
+            )
         });
 
         // Attempt to send a message to this channel.
