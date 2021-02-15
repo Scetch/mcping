@@ -13,6 +13,8 @@ use std::{
 use thiserror::Error as ThisError;
 use trust_dns_resolver::{config::*, Resolver};
 
+mod mcpe;
+
 #[derive(Debug, ThisError)]
 pub enum Error {
     #[error("an invalid packet configuration was sent")]
