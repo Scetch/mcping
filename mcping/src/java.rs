@@ -235,7 +235,7 @@ impl Connection {
             |host: &str| -> Option<IpAddr> { resolver.lookup_ip(host).ok()?.into_iter().next() };
 
         let (ip, port) = resolver
-            .srv_lookup(format!("_minecraft._tcp.{}", &host))
+            .srv_lookup(format!("_minecraft._tcp.{}.", &host))
             .ok()
             .and_then(|lookup| {
                 let record = lookup.into_iter().next()?;

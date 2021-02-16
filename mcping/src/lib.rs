@@ -23,7 +23,7 @@ pub enum Error {
 
 /// Represents a pingable entity.
 pub trait Pingable {
-    /// The type of response that is expected in response from the ping.
+    /// The type of response that is expected in reply to the ping.
     type Response;
 
     /// Ping the entity, gathering the latency and response.
@@ -49,7 +49,7 @@ pub trait Pingable {
 /// # Ok::<(), mcping::Error>(())
 /// ```
 ///
-/// Ping a Bedrock server no timeout, trying 3 times:
+/// Ping a Bedrock server with no timeout, trying 3 times:
 ///
 /// ```no_run
 /// use std::time::Duration;
