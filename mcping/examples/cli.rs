@@ -7,7 +7,10 @@ fn main() -> Result<(), mcping::Error> {
         .with_prompt("Minecraft server address")
         .interact()?;
 
-    let (latency, status) = mcping::get_status(&server_address, Duration::from_secs(10))?;
+    let (latency, status) = mcping::get_status(mcping::Java {
+        address: server_address,
+        timeout: Some(Duration::from_secs(10)),
+    })?;
 
     print!("version: ");
     status
