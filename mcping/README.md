@@ -5,11 +5,13 @@
 [![Crates.io downloads](https://img.shields.io/crates/d/mcping.svg)](https://crates.io/crates/mcping)
 ![CI](https://github.com/Scetch/mcping/workflows/CI/badge.svg)
 
-`mcping` is a Rust crate that can ping a Minecraft server and collect ping information such as the MOTD, max player count, player sample, etc.
+`mcping` is a Rust crate that provides Minecraft server ping protocol implementations. It can be used to ping servers and collect information such as the MOTD, max player count, online player sample, server icon, etc.
 
-**Note:** `mcping` currently only supports Minecraft Java edition.
+The library supports both Java edition and Bedrock edition servers, and has comprehensive DNS handling, including SRV records.
 
 ## Example
+
+TODO: update the example in the README and talk about bedrock support
 
 ```rust
 // Ping the server and gather status information and latency.
@@ -21,7 +23,12 @@ println!("description: {}", status.description.text());
 println!("players: {}/{}", status.players.online, status.players.max);
 ```
 
-A more complete example can be found in the `cli` example (`examples/cli.rs`) and can be run with `cargo run --example cli`.
+A more complete example can be found in the `cli` example (`examples/cli.rs`) and can be run with `cargo run --example cli`. Some example invocations:
+
+```
+cargo run --example cli -- --edition java mc.hypixel.net
+cargo run --example cli -- --edition bedrock play.nethergames.org
+```
 
 ## License
 

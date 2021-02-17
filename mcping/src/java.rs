@@ -13,6 +13,7 @@ use thiserror::Error;
 use trust_dns_resolver::{config::*, Resolver};
 
 /// Configuration for pinging a Java server.
+// TODO: derive stuff
 pub struct Java {
     /// The java server address.
     ///

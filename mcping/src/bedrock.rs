@@ -21,6 +21,7 @@ const OFFLINE_MESSAGE_DATA_ID: &[u8] = &[
 const DEFAULT_PORT: u16 = 19132;
 
 /// Configuration for pinging a Bedrock server.
+// TODO: derive stuff?
 pub struct Bedrock {
     /// The bedrock server address.
     ///
@@ -32,6 +33,7 @@ pub struct Bedrock {
     ///
     /// In case of packet loss an attempt can be made to send more than a single ping.
     pub tries: usize,
+    // TODO: ports to try to bind to
 }
 
 impl Pingable for Bedrock {
@@ -40,6 +42,7 @@ impl Pingable for Bedrock {
     fn ping(self) -> Result<(u64, Self::Response), Error> {
         let mut connection = Connection::new(&self.address, self.timeout)?;
 
+        // TODO: don't spam all the packets at once?
         for _ in 0..self.tries {
             connection.send(Packet::UnconnectedPing)?;
         }
@@ -69,23 +72,25 @@ impl Pingable for Bedrock {
 /// Bedrock Server Payload Response
 ///
 /// See More: https://wiki.vg/Raknet_Protocol#Unconnected_Pong
+// TODO: document stuff
 #[derive(Clone, Debug)]
 pub struct BedrockResponse {
-    edition: String,
-    motd_1: String,
-    protocol_version: String,
-    version_name: String,
-    players_online: Option<i64>,
-    players_max: Option<i64>,
-    server_id: Option<String>,
-    game_mode: Option<String>,
-    game_mode_id: Option<String>,
-    port_v4: Option<u16>,
-    port_v6: Option<u16>,
+    pub edition: String,
+    pub motd_1: String,
+    pub protocol_version: String,
+    pub version_name: String,
+    pub players_online: Option<i64>,
+    pub players_max: Option<i64>,
+    pub server_id: Option<String>,
+    pub motd_2: Option<String>,
+    pub game_mode: Option<String>,
+    pub game_mode_id: Option<String>,
+    pub port_v4: Option<u16>,
+    pub port_v6: Option<u16>,
 }
 
 impl BedrockResponse {
-    /// Extracts information from the semi-colon separated payload.
+    /// Extracts information from the semicolon-separated payload.
     ///
     /// Edition (MCPE or MCEE for Education Edition)
     /// MOTD line 1
@@ -100,7 +105,10 @@ impl BedrockResponse {
     /// Port (IPv4)
     /// Port (IPv6)
     fn extract(payload: &str) -> Option<Self> {
+        // TODO: see if it's possible to send ; in a motd line, and figure out
+        // how that gets escaped if so
         let mut parts = payload.split(';').map(|s| s.to_string());
+
         Some(BedrockResponse {
             edition: parts.next()?,
             motd_1: parts.next()?,
@@ -109,6 +117,7 @@ impl BedrockResponse {
             players_online: parts.next().and_then(|s| s.parse().ok()),
             players_max: parts.next().and_then(|s| s.parse().ok()),
             server_id: parts.next(),
+            motd_2: parts.next(),
             game_mode: parts.next(),
             game_mode_id: parts.next(),
             port_v4: parts.next().and_then(|s| s.parse().ok()),
@@ -181,10 +190,13 @@ impl Connection {
     fn send(&mut self, packet: Packet) -> Result<(), io::Error> {
         match packet {
             Packet::UnconnectedPing => {
-                // id, time, MAGIC, client guid
-                let mut buf = vec![0x01]; // We will write the first packets id and timestamp (0)
-                buf.write_i64::<BigEndian>(0x00)?;
-                buf.extend_from_slice(OFFLINE_MESSAGE_DATA_ID);
+                let mut buf = vec![0x01]; // Packet ID
+                buf.write_i64::<BigEndian>(0x00)?; // Timestamp
+                buf.extend_from_slice(OFFLINE_MESSAGE_DATA_ID); // MAGIC
+
+                // TODO: do we need to get fancy with this or will 0 always be fine?
+                buf.write_i64::<BigEndian>(0)?; // Client GUID
+
                 self.socket.send(&buf)?;
             }
             _ => {
@@ -214,7 +226,10 @@ impl Connection {
                 buf.read_exact(&mut tmp)?;
 
                 if tmp != OFFLINE_MESSAGE_DATA_ID {
-                    return Err(io::Error::new(io::ErrorKind::Other, "Magic Mistmatch"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "incorrect offline message data ID received",
+                    ));
                 }
 
                 let payload = buf.read_string()?;

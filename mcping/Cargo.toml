@@ -19,7 +19,7 @@ thiserror = "1"
 trust-dns-resolver = "0.20"
 
 [dev-dependencies]
-dialoguer = "0.7"
+argh = "0.1"
 mc-legacy-formatting = "0.3"
 viuer = "0.2"
 base64 = "0.13"
