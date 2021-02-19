@@ -88,7 +88,6 @@ impl Pingable for Bedrock {
         let mut connection =
             Connection::new(&self.server_address, &self.socket_addresses, self.timeout)?;
 
-        // TODO: don't spam all the packets at once?
         for _ in 0..self.tries {
             connection.send(Packet::UnconnectedPing)?;
 
