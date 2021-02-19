@@ -4,23 +4,36 @@
 [![Crates.io version](https://img.shields.io/crates/v/mcping.svg)](https://crates.io/crates/mcping)
 [![Crates.io downloads](https://img.shields.io/crates/d/mcping.svg)](https://crates.io/crates/mcping)
 ![CI](https://github.com/Scetch/mcping/workflows/CI/badge.svg)
+[![dependency status](https://deps.rs/repo/github/Scetch/mcping/status.svg)](https://deps.rs/repo/github/Scetch/mcping)
 
 `mcping` is a Rust crate that provides Minecraft server ping protocol implementations. It can be used to ping servers and collect information such as the MOTD, max player count, online player sample, server icon, etc.
 
-The library supports both Java edition and Bedrock edition servers, and has comprehensive DNS handling, including SRV records.
+The library supports both Java and Bedrock servers, and has comprehensive DNS handling (such as SRV record lookup).
 
 ## Example
 
-TODO: update the example in the README and talk about bedrock support
+Ping a Java Server with no timeout:
 
 ```rust
-// Ping the server and gather status information and latency.
-let (latency, status) = mcping::get_status("mc.hypixel.net", Duration::from_secs(10))?;
+use std::time::Duration;
 
-println!("latency: {}", latency);
-print!("version: {}", status.version.name);
-println!("description: {}", status.description.text());
-println!("players: {}/{}", status.players.online, status.players.max);
+let (latency, response) = mcping::get_status(mcping::Java {
+    server_address: "mc.hypixel.net".into(),
+    timeout: None,
+})?;
+```
+
+Ping a Bedrock server with no timeout, trying 3 times:
+
+```rust
+use std::time::Duration;
+
+let (latency, response) = mcping::get_status(mcping::Bedrock {
+    server_address: "mc.hypixel.net".into(),
+    timeout: None,
+    tries: 3,
+    ..Default::default()
+})?;
 ```
 
 A more complete example can be found in the `cli` example (`examples/cli.rs`) and can be run with `cargo run --example cli`. Some example invocations:

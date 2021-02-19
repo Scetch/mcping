@@ -1,4 +1,11 @@
-//! Implementation of both Java and Bedrock server pings.
+//! `mcping` is a Rust crate that provides Minecraft server ping protocol
+//! implementations. It can be used to ping servers and collect information such
+//! as the MOTD, max player count, online player sample, server icon, etc.
+//!
+//! The library supports both Java and Bedrock servers, and has comprehensive DNS
+//! handling (such as SRV record lookup).
+//!
+//! The main API surface is [`get_status`].
 
 mod bedrock;
 mod java;
