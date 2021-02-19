@@ -75,7 +75,7 @@ impl EventHandler for Handler {
 
         // Retrieve our response, decode the icon, and build our sample.
         let status = mcping::get_status(mcping::Java {
-            address: self.addr.clone(),
+            server_address: self.addr.clone(),
             timeout: Some(Duration::from_secs(10)),
         });
 

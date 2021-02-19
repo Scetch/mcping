@@ -37,13 +37,12 @@ fn main() -> Result<(), mcping::Error> {
 
     match args.edition {
         Edition::Java => ping_java(mcping::Java {
-            address: args.address,
+            server_address: args.address,
             timeout: Some(Duration::from_secs(5)),
         }),
         Edition::Bedrock => ping_bedrock(mcping::Bedrock {
             server_address: args.address,
             timeout: Some(Duration::from_secs(5)),
-            tries: 5,
             ..Default::default()
         }),
     }

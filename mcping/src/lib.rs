@@ -43,7 +43,7 @@ pub trait Pingable {
 /// use std::time::Duration;
 ///
 /// let (latency, response) = mcping::get_status(mcping::Java {
-///     address: "mc.hypixel.net".into(),
+///     server_address: "mc.hypixel.net".into(),
 ///     timeout: None,
 /// })?;
 /// # Ok::<(), mcping::Error>(())

@@ -13,12 +13,36 @@ use thiserror::Error;
 use trust_dns_resolver::{config::*, Resolver};
 
 /// Configuration for pinging a Java server.
+///
+/// # Examples
+///
+/// ```
+/// use mcping::Java;
+/// use std::time::Duration;
+///
+/// let bedrock_config = Java {
+///     server_address: "mc.hypixel.net".to_string(),
+///     timeout: Some(Duration::from_secs(10)),
+/// };
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Java {
     /// The java server address.
     ///
-    /// An attempt will be made to resolve the server address.
-    pub address: String,
+    /// This can be either an IP or a hostname, and both may optionally have a
+    /// port at the end.
+    ///
+    /// DNS resolution will be performed on hostnames.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// test.server.com
+    /// test.server.com:19384
+    /// 13.212.76.209
+    /// 13.212.76.209:23193
+    /// ```
+    pub server_address: String,
     /// The connection timeout if a connection cannot be made.
     pub timeout: Option<Duration>,
 }
@@ -27,7 +51,7 @@ impl Pingable for Java {
     type Response = JavaResponse;
 
     fn ping(self) -> Result<(u64, Self::Response), crate::Error> {
-        let mut conn = Connection::new(&self.address, self.timeout)?;
+        let mut conn = Connection::new(&self.server_address, self.timeout)?;
 
         // Handshake
         conn.send_packet(Packet::Handshake {

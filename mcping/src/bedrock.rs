@@ -6,6 +6,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::{
     io::{self, Cursor, Read},
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    thread,
     time::{Duration, Instant},
 };
 use trust_dns_resolver::{config::*, Resolver};
@@ -58,6 +59,8 @@ pub struct Bedrock {
     ///
     /// In case of packet loss an attempt can be made to send more than a single ping.
     pub tries: usize,
+    /// The amount of time to wait in-between sending ping packets.
+    pub wait_to_try: Option<Duration>,
     /// The socket addresses to try binding the UDP socket to.
     pub socket_addresses: Vec<SocketAddr>,
 }
@@ -68,6 +71,7 @@ impl Default for Bedrock {
             server_address: String::new(),
             timeout: None,
             tries: 5,
+            wait_to_try: Some(Duration::from_millis(10)),
             socket_addresses: vec![
                 SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25567)),
                 SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25568)),
@@ -87,6 +91,10 @@ impl Pingable for Bedrock {
         // TODO: don't spam all the packets at once?
         for _ in 0..self.tries {
             connection.send(Packet::UnconnectedPing)?;
+
+            if let Some(wait) = self.wait_to_try {
+                thread::sleep(wait);
+            }
         }
 
         let before = Instant::now();
