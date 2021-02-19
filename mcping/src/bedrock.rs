@@ -111,23 +111,74 @@ impl Pingable for Bedrock {
     }
 }
 
+/// Represents the edition of a bedrock server.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum BedrockEdition {
+    PocketEdition,
+    EducationEdition,
+    /// An unknown edition string.
+    Other(String),
+}
+
+impl std::fmt::Display for BedrockEdition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BedrockEdition::PocketEdition => f.write_str("MCPE"),
+            BedrockEdition::EducationEdition => f.write_str("MCEE"),
+            BedrockEdition::Other(s) => f.write_str(s),
+        }
+    }
+}
+
+impl From<String> for BedrockEdition {
+    fn from(edition: String) -> Self {
+        match edition.to_lowercase().as_ref() {
+            "mcpe" => Self::PocketEdition,
+            "mcee" => Self::EducationEdition,
+            _ => Self::Other(edition),
+        }
+    }
+}
+
 /// Bedrock Server Payload Response
 ///
 /// See More: https://wiki.vg/Raknet_Protocol#Unconnected_Pong
-// TODO: document stuff
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct BedrockResponse {
-    pub edition: String,
+    /// The server's edition.
+    pub edition: BedrockEdition,
+    /// The first line of the server's Message Of The Day (MOTD).
+    ///
+    /// In practice, this seems to be the only line that the bedrock clients
+    /// display, and therefore the only line servers usually send.
     pub motd_1: String,
-    pub protocol_version: String,
+    /// The server's protocol version (ex: 390).
+    pub protocol_version: Option<i64>,
+    /// The name of the servers version (ex: 1.16.200).
+    ///
+    /// Bedrock clients display this after the first line of the MOTD, in the
+    /// format `motd_1 - v{version_name}`. This is ommitted if no version name
+    /// is in the response.
     pub version_name: String,
+    /// The numbers of players online.
     pub players_online: Option<i64>,
+    /// The maximum number of players that could be online at once.
     pub players_max: Option<i64>,
-    pub server_id: Option<String>,
+    /// The server UUID.
+    pub server_id: Option<i64>,
+    /// The second line of the server's MOTD.
+    ///
+    /// In practice, it looks like servers don't really use this. It seems to get
+    /// used sometimes to communicate the server software being used (e.g.
+    /// PocketMine-MP).
     pub motd_2: Option<String>,
+    /// The game mode the server defaults new users to (e.g. "Survival").
     pub game_mode: Option<String>,
-    pub game_mode_id: Option<String>,
+    /// The numerical representation of `game_mode` (e.g. "1").
+    pub game_mode_id: Option<i64>,
+    /// The port to connect to the server on with an IPv4 address.
     pub port_v4: Option<u16>,
+    /// The port to connect to the server on with an IPv6 address.
     pub port_v6: Option<u16>,
 }
 
@@ -147,21 +198,19 @@ impl BedrockResponse {
     /// Port (IPv4)
     /// Port (IPv6)
     fn extract(payload: &str) -> Option<Self> {
-        // TODO: see if it's possible to send ; in a motd line, and figure out
-        // how that gets escaped if so
         let mut parts = payload.split(';').map(|s| s.to_string());
 
         Some(BedrockResponse {
-            edition: parts.next()?,
+            edition: parts.next().map(BedrockEdition::from)?,
             motd_1: parts.next()?,
-            protocol_version: parts.next()?,
+            protocol_version: parts.next().map(|s| s.parse().ok())?,
             version_name: parts.next()?,
             players_online: parts.next().and_then(|s| s.parse().ok()),
             players_max: parts.next().and_then(|s| s.parse().ok()),
-            server_id: parts.next(),
+            server_id: parts.next().and_then(|s| s.parse().ok()),
             motd_2: parts.next(),
             game_mode: parts.next(),
-            game_mode_id: parts.next(),
+            game_mode_id: parts.next().and_then(|s| s.parse().ok()),
             port_v4: parts.next().and_then(|s| s.parse().ok()),
             port_v6: parts.next().and_then(|s| s.parse().ok()),
         })
@@ -239,8 +288,6 @@ impl Connection {
                 let mut buf = vec![0x01]; // Packet ID
                 buf.write_i64::<BigEndian>(0x00)?; // Timestamp
                 buf.extend_from_slice(OFFLINE_MESSAGE_DATA_ID); // MAGIC
-
-                // TODO: do we need to get fancy with this or will 0 always be fine?
                 buf.write_i64::<BigEndian>(0)?; // Client GUID
 
                 self.socket.send(&buf)?;
