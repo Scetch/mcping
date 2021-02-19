@@ -5,7 +5,7 @@ use crate::{Error, Pingable};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::{
     io::{self, Cursor, Read},
-    net::UdpSocket,
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
 use trust_dns_resolver::{config::*, Resolver};
@@ -21,26 +21,68 @@ const OFFLINE_MESSAGE_DATA_ID: &[u8] = &[
 const DEFAULT_PORT: u16 = 19132;
 
 /// Configuration for pinging a Bedrock server.
-// TODO: derive stuff?
+///
+/// # Examples
+///
+/// ```
+/// use mcping::Bedrock;
+/// use std::time::Duration;
+///
+/// let bedrock_config = Bedrock {
+///     server_address: "test.server.com".to_string(),
+///     timeout: Some(Duration::from_secs(10)),
+///     ..Default::default()
+/// };
+/// ```
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Bedrock {
     /// The bedrock server address.
     ///
-    /// An attempt will be made to resolve the server address.
-    pub address: String,
+    /// This can be either an IP or a hostname, and both may optionally have a
+    /// port at the end.
+    ///
+    /// DNS resolution will be performed on hostnames.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// test.server.com
+    /// test.server.com:19384
+    /// 13.212.76.209
+    /// 13.212.76.209:23193
+    /// ```
+    pub server_address: String,
     /// The read and write timeouts for the socket.
     pub timeout: Option<Duration>,
     /// The amount of times to try to send the ping packet.
     ///
     /// In case of packet loss an attempt can be made to send more than a single ping.
     pub tries: usize,
-    // TODO: ports to try to bind to
+    /// The socket addresses to try binding the UDP socket to.
+    pub socket_addresses: Vec<SocketAddr>,
+}
+
+impl Default for Bedrock {
+    fn default() -> Self {
+        Self {
+            server_address: String::new(),
+            timeout: None,
+            tries: 5,
+            socket_addresses: vec![
+                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25567)),
+                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25568)),
+                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25569)),
+            ],
+        }
+    }
 }
 
 impl Pingable for Bedrock {
     type Response = BedrockResponse;
 
     fn ping(self) -> Result<(u64, Self::Response), Error> {
-        let mut connection = Connection::new(&self.address, self.timeout)?;
+        let mut connection =
+            Connection::new(&self.server_address, &self.socket_addresses, self.timeout)?;
 
         // TODO: don't spam all the packets at once?
         for _ in 0..self.tries {
@@ -159,7 +201,11 @@ struct Connection {
 }
 
 impl Connection {
-    fn new(address: &str, timeout: Option<Duration>) -> Result<Self, Error> {
+    fn new(
+        address: &str,
+        socket_addresses: &[SocketAddr],
+        timeout: Option<Duration>,
+    ) -> Result<Self, Error> {
         let mut parts = address.split(':');
 
         let host = parts.next().ok_or(Error::InvalidAddress)?.to_string();
@@ -179,7 +225,7 @@ impl Connection {
             .and_then(|ips| ips.iter().next())
             .ok_or(Error::DnsLookupFailed)?;
 
-        let socket = UdpSocket::bind("0.0.0.0:25567")?;
+        let socket = UdpSocket::bind(socket_addresses)?;
         socket.connect((ip, port))?;
         socket.set_read_timeout(timeout)?;
         socket.set_write_timeout(timeout)?;
