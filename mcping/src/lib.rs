@@ -62,7 +62,7 @@ pub trait Pingable {
 /// use std::time::Duration;
 ///
 /// let (latency, response) = mcping::get_status(mcping::Bedrock {
-///     server_address: "mc.hypixel.net".into(),
+///     server_address: "play.nethergames.org".into(),
 ///     timeout: None,
 ///     tries: 3,
 ///     ..Default::default()

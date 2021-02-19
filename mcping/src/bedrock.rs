@@ -30,7 +30,7 @@ const DEFAULT_PORT: u16 = 19132;
 /// use std::time::Duration;
 ///
 /// let bedrock_config = Bedrock {
-///     server_address: "test.server.com".to_string(),
+///     server_address: "play.nethergames.org".to_string(),
 ///     timeout: Some(Duration::from_secs(10)),
 ///     ..Default::default()
 /// };

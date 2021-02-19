@@ -29,7 +29,7 @@ Ping a Bedrock server with no timeout, trying 3 times:
 use std::time::Duration;
 
 let (latency, response) = mcping::get_status(mcping::Bedrock {
-    server_address: "mc.hypixel.net".into(),
+    server_address: "play.nethergames.org".into(),
     timeout: None,
     tries: 3,
     ..Default::default()
