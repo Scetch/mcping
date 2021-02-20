@@ -74,7 +74,12 @@ impl EventHandler for Handler {
         let chan = msg.channel_id;
 
         // Retrieve our response, decode the icon, and build our sample.
-        let res = mcping::get_status(&self.addr, Duration::from_secs(10)).map(|(ping, r)| {
+        let status = mcping::get_status(mcping::Java {
+            server_address: self.addr.clone(),
+            timeout: Some(Duration::from_secs(10)),
+        });
+
+        let res = status.map(|(ping, r)| {
             // The icon is a base64 encoded PNG so we must decode that first.
             let icon = r
                 .favicon

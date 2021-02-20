@@ -1,6 +1,8 @@
 # mcping
 
-Discord bot written in Rust that pings a Minecraft server with a custom command and displays the status information in chat.
+_See [`mcping/`](mcping) for the library_
+
+Discord bot written in Rust that pings a Java Minecraft server with a custom command and displays the status information in chat.
 
 ![screenshot](screenshot.png)
 
@@ -25,7 +27,7 @@ In order to run the project you'll need [Rust](https://www.rust-lang.org/) insta
 
 ## Library
 
-The Discord bot is built on top of the `mcping` library, which can be integrated into your own application. See [the CLI example](./mcping/examples/cli.rs) for example usage; this can be run via `cargo run --example cli`.
+The Discord bot is built on top of the [`mcping`](mcping) library, which can be integrated into your own application. It supports both Java and Bedrock servers.
 
 Note that this library is not async.
 

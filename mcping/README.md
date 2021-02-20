@@ -4,24 +4,44 @@
 [![Crates.io version](https://img.shields.io/crates/v/mcping.svg)](https://crates.io/crates/mcping)
 [![Crates.io downloads](https://img.shields.io/crates/d/mcping.svg)](https://crates.io/crates/mcping)
 ![CI](https://github.com/Scetch/mcping/workflows/CI/badge.svg)
+[![dependency status](https://deps.rs/repo/github/Scetch/mcping/status.svg)](https://deps.rs/repo/github/Scetch/mcping)
 
-`mcping` is a Rust crate that can ping a Minecraft server and collect ping information such as the MOTD, max player count, player sample, etc.
+`mcping` is a Rust crate that provides Minecraft server ping protocol implementations. It can be used to ping servers and collect information such as the MOTD, max player count, online player sample, server icon, etc.
 
-**Note:** `mcping` currently only supports Minecraft Java edition.
+The library supports both Java and Bedrock servers, and has comprehensive DNS handling (such as SRV record lookup).
 
 ## Example
 
-```rust
-// Ping the server and gather status information and latency.
-let (latency, status) = mcping::get_status("mc.hypixel.net", Duration::from_secs(10))?;
+Ping a Java Server with no timeout:
 
-println!("latency: {}", latency);
-print!("version: {}", status.version.name);
-println!("description: {}", status.description.text());
-println!("players: {}/{}", status.players.online, status.players.max);
+```rust
+use std::time::Duration;
+
+let (latency, response) = mcping::get_status(mcping::Java {
+    server_address: "mc.hypixel.net".into(),
+    timeout: None,
+})?;
 ```
 
-A more complete example can be found in the `cli` example (`examples/cli.rs`) and can be run with `cargo run --example cli`.
+Ping a Bedrock server with no timeout, trying 3 times:
+
+```rust
+use std::time::Duration;
+
+let (latency, response) = mcping::get_status(mcping::Bedrock {
+    server_address: "play.nethergames.org".into(),
+    timeout: None,
+    tries: 3,
+    ..Default::default()
+})?;
+```
+
+A more complete example can be found in the `cli` example (`examples/cli.rs`) and can be run with `cargo run --example cli`. Some example invocations:
+
+```
+cargo run --example cli -- --edition java mc.hypixel.net
+cargo run --example cli -- --edition bedrock play.nethergames.org
+```
 
 ## License
 
