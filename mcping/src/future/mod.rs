@@ -1,12 +1,12 @@
-mod java;
 mod bedrock;
+mod java;
 
 use async_trait::async_trait;
 
 use crate::Error;
 
-pub use java::Java;
 pub use bedrock::Bedrock;
+pub use java::Java;
 
 /// Represents a pingable entity.
 #[async_trait]
