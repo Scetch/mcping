@@ -10,12 +10,17 @@ repository = "https://github.com/Scetch/mcping"
 edition = "2018"
 readme = "README.md"
 
+[features]
+future = ["tokio", "async-trait"]
+
 [dependencies]
+async-trait = { version = "0.1.48", optional = true }
 byteorder = "1"
 rand = "0.8"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
 thiserror = "1"
+tokio = { version = "1.4.0", features = ["net", "io-util"], optional = true }
 trust-dns-resolver = "0.20"
 
 [dev-dependencies]

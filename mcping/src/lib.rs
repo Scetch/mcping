@@ -7,6 +7,9 @@
 //!
 //! The main API surface is [`get_status`].
 
+#[cfg(feature = "future")]
+pub mod future;
+
 mod bedrock;
 mod java;
 

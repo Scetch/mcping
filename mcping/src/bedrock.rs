@@ -14,12 +14,12 @@ use trust_dns_resolver::{config::*, Resolver};
 /// Raknets default OFFLINE_MESSAGE_DATA_ID.
 ///
 /// See more: https://wiki.vg/Raknet_Protocol#Data_types
-const OFFLINE_MESSAGE_DATA_ID: &[u8] = &[
+pub(crate) const OFFLINE_MESSAGE_DATA_ID: &[u8] = &[
     0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78,
 ];
 
 /// The default port of a Raknet Bedrock Server.
-const DEFAULT_PORT: u16 = 19132;
+pub(crate) const DEFAULT_PORT: u16 = 19132;
 
 /// Configuration for pinging a Bedrock server.
 ///
@@ -204,7 +204,7 @@ impl BedrockResponse {
     /// Game mode (numeric)
     /// Port (IPv4)
     /// Port (IPv6)
-    fn extract(payload: &str) -> Option<Self> {
+    pub(crate) fn extract(payload: &str) -> Option<Self> {
         let mut parts = payload.split(';').map(|s| s.to_string());
 
         Some(BedrockResponse {
@@ -242,7 +242,7 @@ impl<T: Read + ReadBytesExt> ReadBedrockExt for T {}
 
 /// Represents a RakNet Unconnected Ping Protocol.
 #[derive(Debug)]
-enum Packet {
+pub(crate) enum Packet {
     UnconnectedPing,
     UnconnectedPong {
         time: u64,
