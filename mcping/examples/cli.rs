@@ -1,3 +1,6 @@
+#[cfg(not(feature = "tokio-runtime"))]
+compile_error!("Please enable the \"tokio-runtime\" feature to use this example");
+
 use std::time::Duration;
 
 use argh::FromArgs;
@@ -32,24 +35,31 @@ impl std::str::FromStr for Edition {
     }
 }
 
-fn main() -> Result<(), mcping::Error> {
+#[tokio::main]
+async fn main() -> Result<(), mcping::Error> {
     let args: Args = argh::from_env();
 
     match args.edition {
-        Edition::Java => ping_java(mcping::Java {
-            server_address: args.address,
-            timeout: Some(Duration::from_secs(5)),
-        }),
-        Edition::Bedrock => ping_bedrock(mcping::Bedrock {
-            server_address: args.address,
-            timeout: Some(Duration::from_secs(5)),
-            ..Default::default()
-        }),
+        Edition::Java => {
+            ping_java(mcping::Java {
+                server_address: args.address,
+                timeout: Some(Duration::from_secs(5)),
+            })
+            .await
+        }
+        Edition::Bedrock => {
+            ping_bedrock(mcping::Bedrock {
+                server_address: args.address,
+                timeout: Some(Duration::from_secs(5)),
+                ..Default::default()
+            })
+            .await
+        }
     }
 }
 
-fn ping_java(config: mcping::Java) -> Result<(), mcping::Error> {
-    let (latency, status) = mcping::get_status(config)?;
+async fn ping_java(config: mcping::Java) -> Result<(), mcping::Error> {
+    let (latency, status) = mcping::tokio::get_status(config).await?;
 
     println!();
     print!("version: ");
@@ -134,8 +144,8 @@ fn ping_java(config: mcping::Java) -> Result<(), mcping::Error> {
     Ok(())
 }
 
-fn ping_bedrock(config: mcping::Bedrock) -> Result<(), mcping::Error> {
-    let (latency, status) = mcping::get_status(config)?;
+async fn ping_bedrock(config: mcping::Bedrock) -> Result<(), mcping::Error> {
+    let (latency, status) = mcping::tokio::get_status(config).await?;
 
     println!();
     println!("version: {}", &status.version_name);
