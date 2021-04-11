@@ -5,9 +5,6 @@ use async_trait::async_trait;
 
 use crate::Error;
 
-pub use bedrock::Bedrock;
-pub use java::Java;
-
 /// Represents a pingable entity.
 #[async_trait]
 pub trait AsyncPingable {
@@ -30,7 +27,7 @@ pub trait AsyncPingable {
 /// ```no_run
 /// use std::time::Duration;
 ///
-/// let (latency, response) = mcping::future::get_status(mcping::future::Java {
+/// let (latency, response) = mcping::tokio::get_status(mcping::Java {
 ///     server_address: "mc.hypixel.net".into(),
 ///     timeout: None,
 /// }).await?;
@@ -42,7 +39,7 @@ pub trait AsyncPingable {
 /// ```no_run
 /// use std::time::Duration;
 ///
-/// let (latency, response) = mcping::future::get_status(mcping::future::Bedrock {
+/// let (latency, response) = mcping::tokio::get_status(mcping::Bedrock {
 ///     server_address: "play.nethergames.org".into(),
 ///     timeout: None,
 ///     tries: 3,

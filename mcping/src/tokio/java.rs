@@ -13,42 +13,7 @@ use tokio::{
 };
 use trust_dns_resolver::{config::*, TokioAsyncResolver};
 
-use crate::{future::AsyncPingable, java::Packet, Error, JavaResponse};
-
-/// Configuration for pinging a Java server.
-///
-/// # Examples
-///
-/// ```
-/// use mcping::future::Java;
-/// use std::time::Duration;
-///
-/// let java_config = Java {
-///     server_address: "mc.hypixel.net".to_string(),
-///     timeout: Some(Duration::from_secs(10)),
-/// };
-/// ```
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Java {
-    /// The java server address.
-    ///
-    /// This can be either an IP or a hostname, and both may optionally have a
-    /// port at the end.
-    ///
-    /// DNS resolution will be performed on hostnames.
-    ///
-    /// # Examples
-    ///
-    /// ```text
-    /// test.server.com
-    /// test.server.com:19384
-    /// 13.212.76.209
-    /// 13.212.76.209:23193
-    /// ```
-    pub server_address: String,
-    /// The connection timeout if a connection cannot be made.
-    pub timeout: Option<Duration>,
-}
+use crate::{java::Packet, tokio::AsyncPingable, Error, Java, JavaResponse};
 
 #[async_trait]
 impl AsyncPingable for Java {

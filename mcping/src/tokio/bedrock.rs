@@ -4,8 +4,7 @@
 use async_trait::async_trait;
 use std::{
     io::{self, Cursor},
-    net::{Ipv4Addr, SocketAddr},
-    thread,
+    net::SocketAddr,
     time::{Duration, Instant},
 };
 use tokio::{
@@ -16,69 +15,9 @@ use trust_dns_resolver::{config::*, TokioAsyncResolver};
 
 use crate::{
     bedrock::{Packet, DEFAULT_PORT, OFFLINE_MESSAGE_DATA_ID},
-    future::AsyncPingable,
-    BedrockResponse, Error,
+    tokio::AsyncPingable,
+    Bedrock, BedrockResponse, Error,
 };
-
-/// Configuration for pinging a Bedrock server.
-///
-/// # Examples
-///
-/// ```
-/// use mcping::::future::Bedrock;
-/// use std::time::Duration;
-///
-/// let bedrock_config = Bedrock {
-///     server_address: "play.nethergames.org".to_string(),
-///     timeout: Some(Duration::from_secs(10)),
-///     ..Default::default()
-/// };
-/// ```
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Bedrock {
-    /// The bedrock server address.
-    ///
-    /// This can be either an IP or a hostname, and both may optionally have a
-    /// port at the end.
-    ///
-    /// DNS resolution will be performed on hostnames.
-    ///
-    /// # Examples
-    ///
-    /// ```text
-    /// test.server.com
-    /// test.server.com:19384
-    /// 13.212.76.209
-    /// 13.212.76.209:23193
-    /// ```
-    pub server_address: String,
-    /// The read and write timeouts for the socket.
-    pub timeout: Option<Duration>,
-    /// The amount of times to try to send the ping packet.
-    ///
-    /// In case of packet loss an attempt can be made to send more than a single ping.
-    pub tries: usize,
-    /// The amount of time to wait in-between sending ping packets.
-    pub wait_to_try: Option<Duration>,
-    /// The socket addresses to try binding the UDP socket to.
-    pub socket_addresses: Vec<SocketAddr>,
-}
-
-impl Default for Bedrock {
-    fn default() -> Self {
-        Self {
-            server_address: String::new(),
-            timeout: None,
-            tries: 5,
-            wait_to_try: Some(Duration::from_millis(10)),
-            socket_addresses: vec![
-                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25567)),
-                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25568)),
-                SocketAddr::from((Ipv4Addr::new(0, 0, 0, 0), 25569)),
-            ],
-        }
-    }
-}
 
 #[async_trait]
 impl AsyncPingable for Bedrock {
@@ -92,7 +31,7 @@ impl AsyncPingable for Bedrock {
             connection.send(Packet::UnconnectedPing).await?;
 
             if let Some(wait) = self.wait_to_try {
-                thread::sleep(wait);
+                tokio::time::sleep(wait).await;
             }
         }
 

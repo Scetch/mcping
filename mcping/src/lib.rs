@@ -7,8 +7,8 @@
 //!
 //! The main API surface is [`get_status`].
 
-#[cfg(feature = "future")]
-pub mod future;
+#[cfg(feature = "tokio-runtime")]
+pub mod tokio;
 
 mod bedrock;
 mod java;

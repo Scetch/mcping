@@ -11,7 +11,7 @@ edition = "2018"
 readme = "README.md"
 
 [features]
-future = ["tokio", "async-trait"]
+tokio-runtime = ["tokio", "async-trait"]
 
 [dependencies]
 async-trait = { version = "0.1.48", optional = true }
