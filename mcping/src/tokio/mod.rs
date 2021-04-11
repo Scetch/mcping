@@ -25,6 +25,7 @@ pub trait AsyncPingable {
 /// Ping a Java Server with no timeout:
 ///
 /// ```no_run
+/// # async {
 /// use std::time::Duration;
 ///
 /// let (latency, response) = mcping::tokio::get_status(mcping::Java {
@@ -32,11 +33,13 @@ pub trait AsyncPingable {
 ///     timeout: None,
 /// }).await?;
 /// # Ok::<(), mcping::Error>(())
+/// # };
 /// ```
 ///
 /// Ping a Bedrock server with no timeout, trying 3 times:
 ///
 /// ```no_run
+/// # async {
 /// use std::time::Duration;
 ///
 /// let (latency, response) = mcping::tokio::get_status(mcping::Bedrock {
@@ -46,6 +49,7 @@ pub trait AsyncPingable {
 ///     ..Default::default()
 /// }).await?;
 /// # Ok::<(), mcping::Error>(())
+/// # };
 /// ```
 pub async fn get_status<P: AsyncPingable>(pingable: P) -> Result<(u64, P::Response), Error> {
     pingable.ping().await
