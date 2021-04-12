@@ -3,7 +3,8 @@
 //! as the MOTD, max player count, online player sample, server icon, etc.
 //!
 //! The library supports both Java and Bedrock servers, and has comprehensive DNS
-//! handling (such as SRV record lookup).
+//! handling (such as SRV record lookup). An async implemention on top of the tokio
+//! runtime is also provided.
 //!
 //! The main API surface is [`get_status`].
 
