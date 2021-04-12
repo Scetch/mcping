@@ -8,7 +8,7 @@
 
 `mcping` is a Rust crate that provides Minecraft server ping protocol implementations. It can be used to ping servers and collect information such as the MOTD, max player count, online player sample, server icon, etc.
 
-The library supports both Java and Bedrock servers, and has comprehensive DNS handling (such as SRV record lookup).
+The library supports both Java and Bedrock servers, and has comprehensive DNS handling (such as SRV record lookup). An async implemention on top of the tokio runtime is also provided.
 
 ## Example
 
@@ -42,6 +42,15 @@ A more complete example can be found in the `cli` example (`examples/cli.rs`) an
 cargo run --example cli -- --edition java mc.hypixel.net
 cargo run --example cli -- --edition bedrock play.nethergames.org
 ```
+
+You can run the async version of the example with:
+
+```
+cargo run --example cli --features tokio-runtime -- --edition java mc.hypixel.net
+cargo run --example cli --features tokio-runtime -- --edition bedrock play.nethergames.org
+```
+
+Make sure your working directory is the `mcping` directory when doing so (you can't toggle features from the workspace root).
 
 ## License
 

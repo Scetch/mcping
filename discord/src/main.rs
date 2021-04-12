@@ -38,8 +38,8 @@ fn load_config() -> Result<Config, anyhow::Error> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .with_context(|| format!("failed to read file '{}'", config_file))?;
-    Ok(toml::from_str(&contents)
-        .with_context(|| format!("failed to parse TOML loaded from file '{}'", config_file))?)
+    toml::from_str(&contents)
+        .with_context(|| format!("failed to parse TOML loaded from file '{}'", config_file))
 }
 
 struct Handler {

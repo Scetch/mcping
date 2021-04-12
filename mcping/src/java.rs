@@ -203,7 +203,7 @@ pub struct InvalidPacket {
 }
 
 #[derive(Debug)]
-enum Packet {
+pub(crate) enum Packet {
     Handshake {
         version: i32,
         host: String,
