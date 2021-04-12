@@ -27,9 +27,7 @@ In order to run the project you'll need [Rust](https://www.rust-lang.org/) insta
 
 ## Library
 
-The Discord bot is built on top of the [`mcping`](mcping) library, which can be integrated into your own application. It supports both Java and Bedrock servers.
-
-Note that this library is not async.
+The Discord bot is built on top of the [`mcping`](mcping) library, which can be integrated into your own application. It supports both Java and Bedrock servers and has an async implementation.
 
 #### License
 

@@ -1,10 +1,8 @@
-#[cfg(not(feature = "tokio-runtime"))]
-compile_error!("Please enable the \"tokio-runtime\" feature to use this example");
-
 use std::time::Duration;
 
 use argh::FromArgs;
 use mc_legacy_formatting::SpanExt;
+use mcping::{BedrockResponse, JavaResponse};
 
 #[derive(FromArgs)]
 /// Test out pinging servers, Bedrock or Java edition.
@@ -35,32 +33,64 @@ impl std::str::FromStr for Edition {
     }
 }
 
+#[cfg(not(feature = "tokio-runtime"))]
+fn main() -> Result<(), mcping::Error> {
+    let args: Args = argh::from_env();
+
+    match args.edition {
+        Edition::Java => {
+            let (latency, status) = mcping::get_status(mcping::Java {
+                server_address: args.address,
+                timeout: Some(Duration::from_secs(5)),
+            })?;
+
+            print_java(latency, status);
+        }
+        Edition::Bedrock => {
+            let (latency, status) = mcping::get_status(mcping::Bedrock {
+                server_address: args.address,
+                timeout: Some(Duration::from_secs(5)),
+                ..Default::default()
+            })?;
+
+            print_bedrock(latency, status);
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "tokio-runtime")]
 #[tokio::main]
 async fn main() -> Result<(), mcping::Error> {
     let args: Args = argh::from_env();
 
     match args.edition {
         Edition::Java => {
-            ping_java(mcping::Java {
+            let (latency, status) = mcping::tokio::get_status(mcping::Java {
                 server_address: args.address,
                 timeout: Some(Duration::from_secs(5)),
             })
-            .await
+            .await?;
+
+            print_java(latency, status);
         }
         Edition::Bedrock => {
-            ping_bedrock(mcping::Bedrock {
+            let (latency, status) = mcping::tokio::get_status(mcping::Bedrock {
                 server_address: args.address,
                 timeout: Some(Duration::from_secs(5)),
                 ..Default::default()
             })
-            .await
+            .await?;
+
+            print_bedrock(latency, status);
         }
     }
+
+    Ok(())
 }
 
-async fn ping_java(config: mcping::Java) -> Result<(), mcping::Error> {
-    let (latency, status) = mcping::tokio::get_status(config).await?;
-
+fn print_java(latency: u64, status: JavaResponse) {
     println!();
     print!("version: ");
     status
@@ -141,12 +171,9 @@ async fn ping_java(config: mcping::Java) -> Result<(), mcping::Error> {
     }
 
     println!();
-    Ok(())
 }
 
-async fn ping_bedrock(config: mcping::Bedrock) -> Result<(), mcping::Error> {
-    let (latency, status) = mcping::tokio::get_status(config).await?;
-
+fn print_bedrock(latency: u64, status: BedrockResponse) {
     println!();
     println!("version: {}", &status.version_name);
     println!("edition: {}", &status.edition);
@@ -187,5 +214,4 @@ async fn ping_bedrock(config: mcping::Bedrock) -> Result<(), mcping::Error> {
     println!("latency: {}ms", latency);
 
     println!();
-    Ok(())
 }
