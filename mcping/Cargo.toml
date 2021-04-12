@@ -26,7 +26,7 @@ trust-dns-resolver = "0.20"
 [dev-dependencies]
 argh = "0.1"
 mc-legacy-formatting = "0.3"
-viuer = "0.3"
+viuer = "0.4"
 base64 = "0.13"
 image = "0.23"
 tokio = { version = "1.4.0", features = ["rt", "rt-multi-thread", "macros"] }

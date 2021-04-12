@@ -159,7 +159,6 @@ fn print_java(latency: u64, status: JavaResponse) {
             viuer::print(
                 &icon_img,
                 &viuer::Config {
-                    resize: true,
                     transparent: true,
                     absolute_offset: false,
                     width: Some(32),
