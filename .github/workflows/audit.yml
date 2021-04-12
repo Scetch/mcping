@@ -1,4 +1,3 @@
-name: Security audit
 on:
   schedule:
     - cron: '0 0 * * 0'
@@ -6,9 +5,14 @@ on:
     paths:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
+    branches:
+      - master
   pull_request:
+    paths:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
+
+name: Rust Security audit
 
 jobs:
   audit:
