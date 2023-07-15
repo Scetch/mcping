@@ -133,20 +133,128 @@ pub struct Players {
     pub sample: Option<Vec<Player>>,
 }
 
-/// This is a partial implemenation of a Minecraft chat component limited to just text
+#[derive(Deserialize)]
+pub enum Color {
+    #[serde(rename = "black")]
+    Black,
+    #[serde(rename = "dark_blue")]
+    DarkBlue,
+    #[serde(rename = "dark_green")]
+    DarkGreen,
+    #[serde(rename = "dark_aqua")]
+    DarkAqua,
+    #[serde(rename = "dark_red")]
+    DarkRed,
+    #[serde(rename = "dark_purple")]
+    DarkPurple,
+    #[serde(rename = "gold")]
+    Gold,
+    #[serde(rename = "gray")]
+    Gray,
+    #[serde(rename = "dark_gray")]
+    DarkGray,
+    #[serde(rename = "blue")]
+    Blue,
+    #[serde(rename = "green")]
+    Green,
+    #[serde(rename = "aqua")]
+    Aqua,
+    #[serde(rename = "red")]
+    Red,
+    #[serde(rename = "light_purple")]
+    LightPurple,
+    #[serde(rename = "yellow")]
+    Yellow,
+    #[serde(rename = "white")]
+    White,
+}
+
+#[derive(Deserialize)]
+pub struct Component {
+    text: String,
+    color: Option<Color>,
+    #[serde(default)]
+    bold: bool,
+    #[serde(default)]
+    italic: bool,
+    #[serde(default)]
+    underline: bool,
+    #[serde(default)]
+    strikethrough: bool,
+    #[serde(default)]
+    obfuscated: bool,
+    extra: Option<Vec<Component>>
+}
+
+impl Component {
+
+    fn get_color_letter(color_code: &Color) -> String {
+        match color_code {
+            Color::Black => String::from("0"),
+            Color::DarkBlue => String::from("1"),
+            Color::DarkGreen => String::from("2"),
+            Color::DarkAqua => String::from("3"),
+            Color::DarkRed => String::from("4"),
+            Color::DarkPurple => String::from("5"),
+            Color::Gold => String::from("6"),
+            Color::Gray => String::from("7"),
+            Color::DarkGray => String::from("8"),
+            Color::Blue => String::from("9"),
+            Color::Green => String::from("a"),
+            Color::Aqua => String::from("b"),
+            Color::Red => String::from("c"),
+            Color::LightPurple => String::from("d"),
+            Color::Yellow => String::from("e"),
+            Color::White => String::from("f")
+        }
+    }
+
+    fn text(&self) -> String {
+        let mut result = String::new();
+        match &self.color {
+            Some(color) => {
+                let letter = Self::get_color_letter(color);
+                result.push_str(&format!("§{}", letter));
+            }
+            _ => {}
+        }
+
+        if self.bold { result.push_str("§l"); }
+        if self.italic { result.push_str("§o"); }
+        if self.underline { result.push_str("§n"); }
+        if self.strikethrough { result.push_str("§m"); }
+        if self.obfuscated { result.push_str("§k"); }
+
+        result.push_str(&self.text);
+
+        match &self.extra {
+            Some(extra) => {
+                for component in extra {
+                    result += &component.text();
+                }
+            }
+            _ => {}
+        }
+
+        result
+    }
+}
+
+/// This is a partial implemenation of a Minecraft chat component limited to just text (and components)
 // TODO: Finish this object.
+
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum Chat {
-    Text { text: String },
+    Text(Component),
     String(String),
 }
 
 impl Chat {
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> String {
         match self {
-            Chat::Text { text } => text.as_str(),
-            Chat::String(s) => s.as_str(),
+            Chat::Text(ct) => ct.text(),
+            Chat::String(s) => s.to_string(),
         }
     }
 }
