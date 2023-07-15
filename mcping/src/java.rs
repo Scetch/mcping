@@ -251,10 +251,10 @@ pub enum Chat {
 }
 
 impl Chat {
-    pub fn text(&self) -> String {
+    pub fn text(&self) -> &str {
         match self {
-            Chat::Text(ct) => ct.text(),
-            Chat::String(s) => s.to_string(),
+            Chat::Text(ct) => &ct.text(),
+            Chat::String(s) => s.as_str(),
         }
     }
 }
